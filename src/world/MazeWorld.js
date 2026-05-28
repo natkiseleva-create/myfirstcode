@@ -78,10 +78,26 @@ export class MazeWorld {
     return maxY + 1;
   }
 
-  getSupportHeight(x, z, feetY, radius = 0.35) {
+  _getColumnSupportAt(wx, wz, maxSurfaceY) {
+    const bx = Math.floor(wx);
+    const bz = Math.floor(wz);
+    let best = -Infinity;
+
+    for (const block of this.blocks.values()) {
+      if (block.x !== bx || block.z !== bz) continue;
+      const surface = block.y + 1;
+      if (surface <= maxSurfaceY && surface > best) {
+        best = surface;
+      }
+    }
+
+    return best === -Infinity ? null : best;
+  }
+
+  getSupportHeight(x, z, feetY, radius = 0.35, allowStepUp = false) {
     const STEP_UP = 1.05;
     const SNAP = 0.12;
-    const maxAllowed = feetY + STEP_UP + SNAP;
+    const maxSurfaceY = feetY + (allowStepUp ? STEP_UP + 0.15 : SNAP + 0.05);
 
     const offsets =
       radius <= 0
@@ -97,17 +113,14 @@ export class MazeWorld {
     let best = -Infinity;
 
     for (const [ox, oz] of offsets) {
-      const top = this.getColumnTop(x + ox, z + oz);
-      if (top <= maxAllowed && top > best) best = top;
+      const support = this._getColumnSupportAt(x + ox, z + oz, maxSurfaceY);
+      if (support !== null && support > best) best = support;
     }
 
-    if (best !== -Infinity) return best;
-
-    const center = this.getColumnTop(x, z);
-    if (center <= feetY + SNAP) return center;
-
-    return null;
+    return best === -Infinity ? null : best;
   }
+
+
   collides(pos) {
     const bx = Math.floor(pos.x);
     const by = Math.floor(pos.y);

@@ -203,7 +203,8 @@ export class FirstPersonController {
       targetX,
       targetZ,
       steppedFeetY,
-      PLAYER_RADIUS
+      PLAYER_RADIUS,
+      true
     );
     if (support === null || Math.abs(support - steppedFeetY) > 0.2) return;
 
