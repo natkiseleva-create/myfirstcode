@@ -1,8 +1,10 @@
 import { randomAt } from './noise.js';
-import { placeTree } from './generateTrees.js';
+import { placeTree, pruneOrphanWood } from './generateTrees.js';
 import { stoneLayersForColumn } from './terrainRules.js';
 
 export const CHUNK_SIZE = 16;
+const TREE_MARGIN = 2;
+const TREE_SPAWN_THRESHOLD = 0.006;
 
 /**
  * Procedural blocks for one chunk (world coordinates).
@@ -41,23 +43,16 @@ export function generateChunkBlocks(cx, cz) {
       }
 
       add(wx, 0, wz, 'grass');
-
-      if (randomAt(wx, wz) < 0.08) {
-        add(wx, 1, wz, 'dirt');
-        if (randomAt(wx + 7919, wz + 7919) < 0.5) {
-          add(wx, 2, wz, 'dirt');
-        }
-      }
     }
   }
 
-  for (let lx = 0; lx < CHUNK_SIZE; lx++) {
-    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+  for (let lx = TREE_MARGIN; lx < CHUNK_SIZE - TREE_MARGIN; lx++) {
+    for (let lz = TREE_MARGIN; lz < CHUNK_SIZE - TREE_MARGIN; lz++) {
       const wx = baseX + lx;
       const wz = baseZ + lz;
 
       if (wx * wx + wz * wz < 36) continue;
-      if (randomAt(wx * 3 + 17, wz * 7 + 31) > 0.018) continue;
+      if (randomAt(wx * 3 + 17, wz * 7 + 31) > TREE_SPAWN_THRESHOLD) continue;
 
       const top = getColumnTop(wx, wz);
       if (top > 2.5) continue;
@@ -69,5 +64,5 @@ export function generateChunkBlocks(cx, cz) {
     }
   }
 
-  return blocks;
+  return pruneOrphanWood(blocks);
 }
