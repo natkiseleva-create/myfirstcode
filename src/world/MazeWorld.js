@@ -1,8 +1,8 @@
 import { buildChunkMeshes, disposeChunkMeshes } from './chunkMeshBuilder.js';
 import { generateMazeGrid, mazeGridToBlocks } from './generateMaze.js';
-import { isInfiniteStone } from './terrainRules.js';
 
 const blockKey = (x, y, z) => `${x},${y},${z}`;
+const GROUND_EPSILON = 0.08;
 
 export class MazeWorld {
   /** @param {THREE.Scene} scene */
@@ -41,14 +41,6 @@ export class MazeWorld {
     this.group = group;
     this.pickables = pickables;
     this.scene.add(group);
-  }
-
-  _extendStoneDown(x, z, y) {
-    if (y >= 0) return;
-    const key = blockKey(x, y, z);
-    if (this.modifications.get(key) === null) return;
-    if (this.blocks.has(key)) return;
-    this.blocks.set(key, { x, y, z, type: 'stone' });
   }
 
   dispose() {
@@ -97,7 +89,9 @@ export class MazeWorld {
     let support = -Infinity;
     for (const [ox, oz] of offsets) {
       const top = this.getColumnTop(x + ox, z + oz);
-      if (top <= feetY + 0.15) support = Math.max(support, top);
+      if (top <= feetY + GROUND_EPSILON) {
+        support = Math.max(support, top);
+      }
     }
     return support === -Infinity ? 0 : support;
   }
@@ -106,9 +100,7 @@ export class MazeWorld {
     const bx = Math.floor(pos.x);
     const by = Math.floor(pos.y);
     const bz = Math.floor(pos.z);
-    const key = blockKey(bx, by, bz);
-    if (this.blocks.has(key)) return true;
-    return isInfiniteStone(bx, by, bz, this.modifications);
+    return this.blocks.has(blockKey(bx, by, bz));
   }
 
   getPickables() {
@@ -117,34 +109,17 @@ export class MazeWorld {
 
   removeBlock(x, y, z) {
     const key = blockKey(x, y, z);
-    const inMap = this.blocks.has(key);
-    const procedural = isInfiniteStone(x, y, z, this.modifications);
-    if (!inMap && !procedural) return null;
-
-    let type = 'stone';
-    if (inMap) {
-      type = this.blocks.get(key).type;
-      this.blocks.delete(key);
-    }
-
+    if (!this.blocks.has(key)) return null;
+    const type = this.blocks.get(key).type;
+    this.blocks.delete(key);
     this.modifications.set(key, null);
-
-    if (y < 0 && isInfiniteStone(x, y - 1, z, this.modifications)) {
-      this._extendStoneDown(x, z, y - 1);
-    }
-
     this._buildMeshes();
     return type;
   }
 
   placeBlock(x, y, z, typeId) {
     const key = blockKey(x, y, z);
-    if (
-      this.blocks.has(key) ||
-      isInfiniteStone(x, y, z, this.modifications)
-    ) {
-      return false;
-    }
+    if (this.blocks.has(key)) return false;
     this.blocks.set(key, { x, y, z, type: typeId });
     this.modifications.set(key, typeId);
     this._buildMeshes();

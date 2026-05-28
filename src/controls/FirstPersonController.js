@@ -242,7 +242,11 @@ export class FirstPersonController {
       PLAYER_RADIUS
     );
 
-    if (this.velocity.y <= 0 && feetY <= support + 0.08) {
+    if (
+      this.velocity.y <= 0 &&
+      feetY <= support + 0.08 &&
+      support <= feetY + 0.25
+    ) {
       this.camera.position.y = support + PLAYER_HEIGHT;
       this.velocity.y = 0;
       this.onGround = true;
