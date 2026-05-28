@@ -22,11 +22,13 @@ const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  200
+  250
 );
 
 const {
   scene,
+  updateWorld,
+  ensureWorldLoaded,
   collides,
   getSupportHeight,
   getBlockMeshes,
@@ -44,6 +46,7 @@ const controller = new FirstPersonController(camera, canvas, {
 
 const spawnX = 0;
 const spawnZ = 0;
+ensureWorldLoaded(spawnX, spawnZ);
 const spawnGround = getSupportHeight(spawnX, spawnZ, 10, PLAYER_RADIUS);
 controller.setPosition(spawnX, spawnGround, spawnZ);
 
@@ -122,6 +125,8 @@ function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
+
+  updateWorld(camera.position.x, camera.position.z);
 
   if (controller.isLocked && !inventoryUI.isOpen) {
     controller.update(dt);

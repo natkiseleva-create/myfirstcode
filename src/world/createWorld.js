@@ -1,34 +1,11 @@
 import * as THREE from 'three';
-import { getBlockType } from '../blocks/blockTypes.js';
-import { generateTrees } from './generateTrees.js';
-
-const BLOCK_SIZE = 1;
-const materialCache = new Map();
-
-function getMaterials(blockType) {
-  if (materialCache.has(blockType.id)) {
-    return materialCache.get(blockType.id);
-  }
-
-  const materials = [
-    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
-    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
-    new THREE.MeshLambertMaterial({ color: blockType.topColor }),
-    new THREE.MeshLambertMaterial({ color: 0x3d2817 }),
-    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
-    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
-  ];
-  materialCache.set(blockType.id, materials);
-  return materials;
-}
-
-const blockKey = (x, y, z) => `${x},${y},${z}`;
+import { ChunkManager } from './ChunkManager.js';
 
 /**
  * @returns {{
  *   scene: THREE.Scene,
+ *   updateWorld: (playerX: number, playerZ: number) => void,
  *   collides: (pos: THREE.Vector3) => boolean,
- *   getColumnTop: (x: number, z: number) => number,
  *   getSupportHeight: (x: number, z: number, feetY: number, radius?: number) => number,
  *   getBlockMeshes: () => THREE.Mesh[],
  *   removeBlock: (x: number, y: number, z: number) => string | null,
@@ -38,7 +15,7 @@ const blockKey = (x, y, z) => `${x},${y},${z}`;
 export function createWorld() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x87ceeb);
-  scene.fog = new THREE.Fog(0x87ceeb, 40, 120);
+  scene.fog = new THREE.Fog(0x87ceeb, 50, 140);
 
   const ambient = new THREE.AmbientLight(0xffffff, 0.55);
   scene.add(ambient);
@@ -47,117 +24,17 @@ export function createWorld() {
   sun.position.set(30, 50, 20);
   scene.add(sun);
 
-  const blockPositions = new Set();
-  const blocks = new Map();
-  const geometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-
-  function addBlock(x, y, z, typeId) {
-    const blockType = getBlockType(typeId);
-    if (!blockType) return false;
-
-    const key = blockKey(x, y, z);
-    if (blocks.has(key)) return false;
-
-    const mesh = new THREE.Mesh(geometry, getMaterials(blockType));
-    mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData.block = { x, y, z, type: typeId };
-    scene.add(mesh);
-
-    blocks.set(key, mesh);
-    blockPositions.add(key);
-    return true;
-  }
-
-  function removeBlock(x, y, z) {
-    const key = blockKey(x, y, z);
-    const mesh = blocks.get(key);
-    if (!mesh) return null;
-
-    const type = mesh.userData.block.type;
-    scene.remove(mesh);
-    blocks.delete(key);
-    blockPositions.delete(key);
-    return type;
-  }
-
-  function placeBlock(x, y, z, typeId) {
-    return addBlock(x, y, z, typeId);
-  }
-
-  function getColumnTop(x, z) {
-    const bx = Math.floor(x);
-    const bz = Math.floor(z);
-    let maxY = -1;
-    for (const key of blockPositions) {
-      const [kx, ky, kz] = key.split(',').map(Number);
-      if (kx === bx && kz === bz && ky > maxY) {
-        maxY = ky;
-      }
-    }
-    return maxY >= 0 ? maxY + 1 : 0;
-  }
-
-  /** Highest walkable surface under the player footprint at or below feetY. */
-  function getSupportHeight(x, z, feetY, radius = 0.35) {
-    const offsets = [
-      [0, 0],
-      [radius, 0],
-      [-radius, 0],
-      [0, radius],
-      [0, -radius],
-    ];
-
-    let support = 0;
-    for (const [ox, oz] of offsets) {
-      const top = getColumnTop(x + ox, z + oz);
-      if (top <= feetY + 0.15) {
-        support = Math.max(support, top);
-      }
-    }
-    return support;
-  }
-
-  const worldSize = 16;
-  for (let x = -worldSize; x < worldSize; x++) {
-    for (let z = -worldSize; z < worldSize; z++) {
-      addBlock(x, 0, z, 'grass');
-      if (Math.random() < 0.08) {
-        addBlock(x, 1, z, 'dirt');
-        if (Math.random() < 0.5) {
-          addBlock(x, 2, z, 'dirt');
-        }
-      }
-    }
-  }
-
-  generateTrees({
-    addBlock,
-    getColumnTop,
-    worldSize,
-    count: 40,
-    spawnClearRadius: 5,
-  });
-
-  function collides(pos) {
-    const bx = Math.floor(pos.x);
-    const by = Math.floor(pos.y);
-    const bz = Math.floor(pos.z);
-    return blockPositions.has(blockKey(bx, by, bz));
-  }
-
-  function getBlockMeshes() {
-    return [...blocks.values()];
-  }
+  const chunks = new ChunkManager(scene);
 
   return {
     scene,
-    collides,
-    getColumnTop,
-    getSupportHeight,
-    getBlockMeshes,
-    removeBlock,
-    placeBlock,
+    updateWorld: (x, z) => chunks.update(x, z),
+    ensureWorldLoaded: (x, z) => chunks.ensureLoaded(x, z),
+    collides: (pos) => chunks.collides(pos),
+    getSupportHeight: (x, z, feetY, radius) =>
+      chunks.getSupportHeight(x, z, feetY, radius),
+    getBlockMeshes: () => chunks.getBlockMeshes(),
+    removeBlock: (x, y, z) => chunks.removeBlock(x, y, z),
+    placeBlock: (x, y, z, typeId) => chunks.placeBlock(x, y, z, typeId),
   };
 }
