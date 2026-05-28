@@ -1,16 +1,23 @@
 import * as THREE from 'three';
+import { getBlockType } from '../blocks/blockTypes.js';
 
 const BLOCK_SIZE = 1;
+const materialCache = new Map();
 
-function createBlockMaterial(topColor, sideColor) {
+function getMaterials(blockType) {
+  if (materialCache.has(blockType.id)) {
+    return materialCache.get(blockType.id);
+  }
+
   const materials = [
-    new THREE.MeshLambertMaterial({ color: sideColor }),
-    new THREE.MeshLambertMaterial({ color: sideColor }),
-    new THREE.MeshLambertMaterial({ color: topColor }),
+    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
+    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
+    new THREE.MeshLambertMaterial({ color: blockType.topColor }),
     new THREE.MeshLambertMaterial({ color: 0x3d2817 }),
-    new THREE.MeshLambertMaterial({ color: sideColor }),
-    new THREE.MeshLambertMaterial({ color: sideColor }),
+    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
+    new THREE.MeshLambertMaterial({ color: blockType.sideColor }),
   ];
+  materialCache.set(blockType.id, materials);
   return materials;
 }
 
@@ -22,7 +29,8 @@ const blockKey = (x, y, z) => `${x},${y},${z}`;
  *   collides: (pos: THREE.Vector3) => boolean,
  *   getGroundHeight: (x: number, z: number) => number,
  *   getBlockMeshes: () => THREE.Mesh[],
- *   removeBlock: (x: number, y: number, z: number) => boolean,
+ *   removeBlock: (x: number, y: number, z: number) => string | null,
+ *   placeBlock: (x: number, y: number, z: number, typeId: string) => boolean,
  * }}
  */
 export function createWorld() {
@@ -39,60 +47,65 @@ export function createWorld() {
 
   const blockPositions = new Set();
   const blocks = new Map();
-
   const geometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-  const grassMat = createBlockMaterial(0x5a9e3a, 0x6b4423);
-  const stoneMat = createBlockMaterial(0x888888, 0x777777);
-  const dirtMat = createBlockMaterial(0x6b4423, 0x5a3820);
 
-  function addBlock(x, y, z, materials) {
+  function addBlock(x, y, z, typeId) {
+    const blockType = getBlockType(typeId);
+    if (!blockType) return false;
+
     const key = blockKey(x, y, z);
-    if (blocks.has(key)) return;
+    if (blocks.has(key)) return false;
 
-    const mesh = new THREE.Mesh(geometry, materials);
+    const mesh = new THREE.Mesh(geometry, getMaterials(blockType));
     mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.userData.block = { x, y, z };
+    mesh.userData.block = { x, y, z, type: typeId };
     scene.add(mesh);
 
     blocks.set(key, mesh);
     blockPositions.add(key);
+    return true;
   }
 
   function removeBlock(x, y, z) {
     const key = blockKey(x, y, z);
     const mesh = blocks.get(key);
-    if (!mesh) return false;
+    if (!mesh) return null;
 
+    const type = mesh.userData.block.type;
     scene.remove(mesh);
     blocks.delete(key);
     blockPositions.delete(key);
-    return true;
+    return type;
+  }
+
+  function placeBlock(x, y, z, typeId) {
+    return addBlock(x, y, z, typeId);
   }
 
   const worldSize = 16;
   for (let x = -worldSize; x < worldSize; x++) {
     for (let z = -worldSize; z < worldSize; z++) {
-      addBlock(x, 0, z, grassMat);
+      addBlock(x, 0, z, 'grass');
       if (Math.random() < 0.08) {
-        addBlock(x, 1, z, dirtMat);
+        addBlock(x, 1, z, 'dirt');
         if (Math.random() < 0.5) {
-          addBlock(x, 2, z, dirtMat);
+          addBlock(x, 2, z, 'dirt');
         }
       }
     }
   }
 
-  addBlock(3, 1, 3, stoneMat);
-  addBlock(3, 2, 3, stoneMat);
-  addBlock(3, 3, 3, stoneMat);
-  addBlock(4, 1, 3, stoneMat);
-  addBlock(5, 1, 5, stoneMat);
-  addBlock(5, 2, 5, stoneMat);
-  addBlock(-6, 1, 4, stoneMat);
-  addBlock(-6, 2, 4, stoneMat);
-  addBlock(-6, 3, 4, stoneMat);
+  addBlock(3, 1, 3, 'stone');
+  addBlock(3, 2, 3, 'stone');
+  addBlock(3, 3, 3, 'stone');
+  addBlock(4, 1, 3, 'stone');
+  addBlock(5, 1, 5, 'stone');
+  addBlock(5, 2, 5, 'stone');
+  addBlock(-6, 1, 4, 'stone');
+  addBlock(-6, 2, 4, 'stone');
+  addBlock(-6, 3, 4, 'stone');
 
   function collides(pos) {
     const bx = Math.floor(pos.x);
@@ -124,5 +137,6 @@ export function createWorld() {
     getGroundHeight,
     getBlockMeshes,
     removeBlock,
+    placeBlock,
   };
 }
