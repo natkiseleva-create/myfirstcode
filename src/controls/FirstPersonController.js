@@ -205,7 +205,7 @@ export class FirstPersonController {
       steppedFeetY,
       PLAYER_RADIUS
     );
-    if (Math.abs(support - steppedFeetY) > 0.2) return;
+    if (support === null || Math.abs(support - steppedFeetY) > 0.2) return;
 
     this.camera.position.x = targetX;
     this.camera.position.z = targetZ;
@@ -239,6 +239,12 @@ export class FirstPersonController {
     const pz = this.camera.position.z;
     const feetY = this.getFeetY();
     const groundY = this.getSupportHeight(px, pz, feetY, PLAYER_RADIUS);
+
+    if (groundY === null) {
+      this.onGround = false;
+      return;
+    }
+
     const aboveGround = feetY - groundY;
 
     if (this.velocity.y <= 0) {
@@ -258,9 +264,12 @@ export class FirstPersonController {
     }
 
     if (this.velocity.y <= 0 && this._bodyCollidesAt(px, pz, feetY)) {
-      this.camera.position.y = groundY + PLAYER_HEIGHT;
-      this.velocity.y = 0;
-      this.onGround = true;
+      const centerGround = this.getSupportHeight(px, pz, feetY, 0);
+      if (centerGround !== null) {
+        this.camera.position.y = centerGround + PLAYER_HEIGHT;
+        this.velocity.y = 0;
+        this.onGround = true;
+      }
       return;
     }
 

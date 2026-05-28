@@ -277,26 +277,35 @@ export class ChunkManager {
   }
 
   getSupportHeight(x, z, feetY, radius = 0.35) {
-    const offsets = [
-      [0, 0],
-      [radius, 0],
-      [-radius, 0],
-      [0, radius],
-      [0, -radius],
-    ];
+    const STEP_UP = 1.05;
+    const SNAP = 0.12;
+    const maxAllowed = feetY + STEP_UP + SNAP;
 
-    let surfaceY = -Infinity;
+    const offsets =
+      radius <= 0
+        ? [[0, 0]]
+        : [
+            [0, 0],
+            [radius, 0],
+            [-radius, 0],
+            [0, radius],
+            [0, -radius],
+          ];
+
+    let best = -Infinity;
 
     for (const [ox, oz] of offsets) {
       const top = this.getColumnTop(x + ox, z + oz);
-      if (top > surfaceY) surfaceY = top;
+      if (top <= maxAllowed && top > best) best = top;
     }
 
-    if (surfaceY === -Infinity) return 0;
+    if (best !== -Infinity) return best;
 
-    return surfaceY;
+    const center = this.getColumnTop(x, z);
+    if (center <= feetY + SNAP) return center;
+
+    return null;
   }
-
   collides(pos) {
     const bx = Math.floor(pos.x);
     const by = Math.floor(pos.y);
