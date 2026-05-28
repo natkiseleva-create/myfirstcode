@@ -65,3 +65,42 @@ export function canPlaceTree(wx, wz) {
   const h = getTerrainHeight(wx, wz);
   return h >= SEA_LEVEL + 2 && h <= MAX_HEIGHT - 3;
 }
+
+/** Dry land suitable for player spawn. */
+export function isLandColumn(wx, wz) {
+  if (isWaterColumn(wx, wz)) return false;
+  return getTerrainHeight(wx, wz) >= SEA_LEVEL;
+}
+
+/**
+ * Find spawn point on land near (startX, startZ).
+ */
+export function findLandSpawn(startX = 0, startZ = 0, maxRadius = 96) {
+  const tryPoint = (wx, wz) => {
+    if (!isLandColumn(wx, wz)) return null;
+    return {
+      x: wx + 0.5,
+      z: wz + 0.5,
+      groundY: getTerrainHeight(wx, wz),
+    };
+  };
+
+  const center = tryPoint(Math.floor(startX), Math.floor(startZ));
+  if (center) return center;
+
+  for (let r = 1; r <= maxRadius; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const point = tryPoint(startX + dx, startZ + dz);
+        if (point) return point;
+      }
+    }
+  }
+
+  return {
+    x: startX + 0.5,
+    z: startZ + 0.5,
+    groundY: SEA_LEVEL + 2,
+  };
+}

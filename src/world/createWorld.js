@@ -3,7 +3,7 @@ import { GAME_MODES } from '../modes/gameModes.js';
 import { ChunkManager } from './ChunkManager.js';
 import { MazeWorld } from './MazeWorld.js';
 import { MobManager } from '../entities/MobManager.js';
-import { getTerrainHeight } from './terrainGenerator.js';
+import { findLandSpawn } from './terrainGenerator.js';
 
 function createScene(fogNear, fogFar) {
   const scene = new THREE.Scene();
@@ -59,12 +59,12 @@ export function createWorld(mode = GAME_MODES.FREE) {
   const mobs = new MobManager(scene, worldApi);
   chunks.mobManager = mobs;
 
-  const spawnY = getTerrainHeight(0, 0);
+  const spawn = findLandSpawn(0, 0);
 
   return {
     mode,
     scene,
-    spawn: { x: 0, z: 0, groundY: spawnY },
+    spawn,
     updateWorld: (x, z) => chunks.update(x, z),
     updateMobs: (dt) => mobs.update(dt),
     ensureWorldLoaded: (x, z) => chunks.ensureLoaded(x, z),

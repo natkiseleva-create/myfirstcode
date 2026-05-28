@@ -8,7 +8,7 @@ const worldNormal = new THREE.Vector3();
  * @param {THREE.Intersection} hit
  * @returns {{ x: number, y: number, z: number, type?: string } | null}
  */
-function blockFromHit(hit) {
+export function blockFromHit(hit) {
   if (hit.instanceId !== undefined && hit.object.userData.blocks) {
     const block = hit.object.userData.blocks[hit.instanceId];
     if (block) return block;
@@ -36,7 +36,7 @@ function blockFromHit(hit) {
  * @param {THREE.Object3D[]} pickables
  * @param {number} [maxDistance=5]
  */
-function raycastBlocks(camera, pickables, maxDistance = 5) {
+export function raycastBlocks(camera, pickables, maxDistance = 5) {
   if (pickables.length === 0) return null;
 
   raycaster.setFromCamera(screenCenter, camera);

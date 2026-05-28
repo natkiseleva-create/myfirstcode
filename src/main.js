@@ -6,6 +6,12 @@ import {
 } from './controls/FirstPersonController.js';
 import { createWorld } from './world/createWorld.js';
 import { pickBlock, pickBlockFace } from './world/pickBlock.js';
+import {
+  createBlockHighlight,
+  updateBlockHighlight,
+  hideBlockHighlight,
+  disposeBlockHighlight,
+} from './world/blockHighlight.js';
 import { Inventory } from './inventory/Inventory.js';
 import { InventoryUI } from './ui/InventoryUI.js';
 import { GAME_MODES } from './modes/gameModes.js';
@@ -129,6 +135,7 @@ function showModeMenu() {
   closeInventory();
 
   if (world) {
+    disposeBlockHighlight();
     world.dispose();
     world = null;
   }
@@ -151,6 +158,7 @@ function startMode(mode) {
   document.getElementById('hotbar')?.classList.remove('hidden');
 
   world = createWorld(mode);
+  createBlockHighlight(world.scene);
   inventory = new Inventory();
   inventoryUI = new InventoryUI(inventory, {
     onClose: () => resumeGameplay(),
@@ -204,6 +212,9 @@ function animate(now) {
   if (controller.isLocked && !inventoryUI?.isOpen) {
     controller.update(dt);
     checkMazeWin();
+    updateBlockHighlight(camera, world.getPickables(), REACH);
+  } else {
+    hideBlockHighlight();
   }
 
   renderer.render(world.scene, camera);
