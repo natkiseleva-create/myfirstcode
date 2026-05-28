@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-const GRAVITY = 28;
-const JUMP_VELOCITY = 9;
+const GRAVITY = 50;
+const JUMP_VELOCITY = 10.2;
 const WALK_SPEED = 5;
 const SPRINT_SPEED = 9;
 const MOUSE_SENSITIVITY = 0.002;
