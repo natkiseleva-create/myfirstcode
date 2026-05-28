@@ -40,22 +40,24 @@ let inventoryUI = null;
 let currentMode = null;
 let lastTime = performance.now();
 
-function playerOccupiesBlock(x, y, z) {
-  const minX = camera.position.x - PLAYER_RADIUS;
-  const maxX = camera.position.x + PLAYER_RADIUS;
-  const minY = camera.position.y - PLAYER_HEIGHT;
-  const maxY = camera.position.y;
-  const minZ = camera.position.z - PLAYER_RADIUS;
-  const maxZ = camera.position.z + PLAYER_RADIUS;
+function blocksPlayerPlacement(x, y, z) {
+  const feetY = camera.position.y - PLAYER_HEIGHT;
+  const headY = camera.position.y;
 
-  return (
-    maxX > x &&
-    minX < x + 1 &&
-    maxY > y &&
-    minY < y + 1 &&
-    maxZ > z &&
-    minZ < z + 1
-  );
+  const overlaps =
+    camera.position.x + PLAYER_RADIUS > x &&
+    camera.position.x - PLAYER_RADIUS < x + 1 &&
+    headY > y &&
+    feetY < y + 1 &&
+    camera.position.z + PLAYER_RADIUS > z &&
+    camera.position.z - PLAYER_RADIUS < z + 1;
+
+  if (!overlaps) return false;
+
+  // Pillar jump: allow a block whose top is below the feet.
+  if (y + 1 <= feetY + 0.2) return false;
+
+  return true;
 }
 
 function tryBreakBlock() {
@@ -81,7 +83,7 @@ function tryPlaceBlock() {
   const selected = inventory.getSelectedItem();
   if (!selected.type) return;
 
-  if (playerOccupiesBlock(place.x, place.y, place.z)) return;
+  if (blocksPlayerPlacement(place.x, place.y, place.z)) return;
   if (world.collides(new THREE.Vector3(place.x + 0.5, place.y + 0.5, place.z + 0.5))) {
     return;
   }
