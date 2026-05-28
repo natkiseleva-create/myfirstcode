@@ -1,3 +1,5 @@
+import { randomAt } from './noise.js';
+
 /**
  * @param {number} x
  * @param {number} z
@@ -8,13 +10,14 @@ export function placeTree(x, z, addBlock, getColumnTop) {
   const surfaceY = getColumnTop(x, z);
   const trunkBase = Math.floor(surfaceY);
 
-  const trunkHeight = 4 + Math.floor(Math.random() * 3);
+  const trunkHeight = 4 + Math.floor(randomAt(x * 13 + 7, z * 11 + 3) * 3);
 
   for (let y = trunkBase; y < trunkBase + trunkHeight; y++) {
     addBlock(x, y, z, 'wood');
   }
 
   const crownBase = trunkBase + trunkHeight - 2;
+  let leavesPlaced = 0;
 
   for (let dx = -2; dx <= 2; dx++) {
     for (let dy = 0; dy <= 3; dy++) {
@@ -23,11 +26,21 @@ export function placeTree(x, z, addBlock, getColumnTop) {
 
         const dist = Math.abs(dx) + Math.abs(dy - 1) + Math.abs(dz);
         if (dist > 4) continue;
-        if (Math.random() < 0.12 && dist > 2) continue;
 
-        addBlock(x + dx, crownBase + dy, z + dz, 'leaves');
+        if (addBlock(x + dx, crownBase + dy, z + dz, 'leaves')) {
+          leavesPlaced++;
+        }
       }
     }
+  }
+
+  if (leavesPlaced === 0) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        addBlock(x + dx, crownBase + 2, z + dz, 'leaves');
+      }
+    }
+    addBlock(x, crownBase + 3, z, 'leaves');
   }
 }
 
