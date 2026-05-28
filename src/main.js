@@ -149,7 +149,7 @@ function startMode(mode) {
       'Найдите золотой столб — это выход из лабиринта. Esc — в меню режимов.';
   } else {
     modeHint.textContent =
-      'Бесконечный мир: исследуйте, добывайте ресурсы, стройте. Esc — в меню режимов.';
+      'Холмы, реки, озёра и мобы. Исследуйте мир, добывайте ресурсы. Esc — в меню.';
   }
 
   overlay.classList.remove('hidden');
@@ -173,6 +173,7 @@ function animate(now) {
   if (!world) return;
 
   world.updateWorld(camera.position.x, camera.position.z);
+  world.updateMobs(dt);
 
   if (controller.isLocked && !inventoryUI.isOpen) {
     controller.update(dt);

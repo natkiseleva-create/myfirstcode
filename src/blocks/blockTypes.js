@@ -34,6 +34,21 @@ export const BLOCK_TYPES = {
     sideColor: 0x2d6b28,
     stackSize: 64,
   },
+  water: {
+    id: 'water',
+    label: 'Вода',
+    topColor: 0x3a8fd4,
+    sideColor: 0x2a6fa8,
+    stackSize: 64,
+    transparent: true,
+  },
+  sand: {
+    id: 'sand',
+    label: 'Песок',
+    topColor: 0xd4c48a,
+    sideColor: 0xc4b47a,
+    stackSize: 64,
+  },
   gold: {
     id: 'gold',
     label: 'Выход',

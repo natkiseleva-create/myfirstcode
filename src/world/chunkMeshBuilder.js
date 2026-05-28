@@ -12,7 +12,11 @@ function getMaterial(typeId) {
   const blockType = getBlockType(typeId);
   if (!blockType) return null;
 
-  const mat = new THREE.MeshLambertMaterial({ color: blockType.sideColor });
+  const mat = new THREE.MeshLambertMaterial({
+    color: blockType.sideColor,
+    transparent: Boolean(blockType.transparent),
+    opacity: blockType.transparent ? 0.78 : 1,
+  });
   materialCache.set(typeId, mat);
   return mat;
 }

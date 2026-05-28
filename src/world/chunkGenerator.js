@@ -1,6 +1,7 @@
 import { randomAt } from './noise.js';
 import { placeTree, pruneOrphanWood } from './generateTrees.js';
-import { stoneLayersForColumn } from './terrainRules.js';
+import { canPlaceTree, getTerrainHeight } from './terrainGenerator.js';
+import { fillTerrainColumn } from './terrainRules.js';
 
 export const CHUNK_SIZE = 16;
 const TREE_MARGIN = 3;
@@ -17,7 +18,8 @@ export function generateChunkBlocks(cx, cz) {
 
   const columnTop = new Map();
 
-  function setColumnTop(wx, wz, y) {
+  function setColumnTop(wx, wz, y, type) {
+    if (type === 'water') return;
     const key = `${wx},${wz}`;
     const prev = columnTop.get(key) ?? -1;
     if (y > prev) columnTop.set(key, y);
@@ -30,19 +32,15 @@ export function generateChunkBlocks(cx, cz) {
 
   function add(wx, wy, wz, type) {
     blocks.push({ x: wx, y: wy, z: wz, type });
-    setColumnTop(wx, wz, wy);
+    setColumnTop(wx, wz, wy, type);
   }
 
   for (let lx = 0; lx < CHUNK_SIZE; lx++) {
     for (let lz = 0; lz < CHUNK_SIZE; lz++) {
       const wx = baseX + lx;
       const wz = baseZ + lz;
-
-      for (const stone of stoneLayersForColumn(wx, wz)) {
-        add(stone.x, stone.y, stone.z, stone.type);
-      }
-
-      add(wx, 0, wz, 'grass');
+      const surfaceY = getTerrainHeight(wx, wz);
+      fillTerrainColumn(wx, wz, surfaceY, add);
     }
   }
 
@@ -52,10 +50,11 @@ export function generateChunkBlocks(cx, cz) {
       const wz = baseZ + lz;
 
       if (wx * wx + wz * wz < 36) continue;
+      if (!canPlaceTree(wx, wz)) continue;
       if (randomAt(wx * 3 + 17, wz * 7 + 31) > TREE_SPAWN_THRESHOLD) continue;
 
       const top = getColumnTop(wx, wz);
-      if (top > 2.5) continue;
+      if (top < 6) continue;
 
       placeTree(wx, wz, (x, y, z, type) => {
         add(x, y, z, type);

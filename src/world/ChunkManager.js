@@ -1,4 +1,5 @@
 import { CHUNK_SIZE, generateChunkBlocks } from './chunkGenerator.js';
+import { isSolidBlock } from './terrainRules.js';
 import {
   buildChunkMeshes,
   disposeChunkMeshes,
@@ -16,8 +17,9 @@ const chunkKey = (cx, cz) => `${cx},${cz}`;
 const columnKey = (x, z) => `${x},${z}`;
 
 export class ChunkManager {
-  constructor(scene) {
+  constructor(scene, options = {}) {
     this.scene = scene;
+    this.mobManager = options.mobManager ?? null;
     this.chunks = new Map();
     this.modifications = new Map();
     this.modsByChunk = new Map();
@@ -61,7 +63,7 @@ export class ChunkManager {
   _updateColumnTop(chunk, x, z) {
     let maxY = -Infinity;
     for (const block of chunk.blocks.values()) {
-      if (block.x === x && block.z === z && block.y > maxY) {
+      if (block.x === x && block.z === z && block.y > maxY && isSolidBlock(block.type)) {
         maxY = block.y;
       }
     }
@@ -75,8 +77,9 @@ export class ChunkManager {
   _rebuildColumnTops(chunk) {
     chunk.columnTops.clear();
     for (const block of chunk.blocks.values()) {
+      if (!isSolidBlock(block.type)) continue;
       const ck = columnKey(block.x, block.z);
-      const top = (chunk.columnTops.get(ck) ?? -Infinity);
+      const top = chunk.columnTops.get(ck) ?? -Infinity;
       const surface = block.y + 1;
       if (surface > top) chunk.columnTops.set(ck, surface);
     }
@@ -179,6 +182,7 @@ export class ChunkManager {
   loadChunk(cx, cz) {
     if (this.chunks.has(chunkKey(cx, cz))) return;
     this._createChunk(cx, cz);
+    this.mobManager?.onChunkLoaded(cx, cz);
   }
 
   _queueChunk(cx, cz) {
@@ -202,6 +206,7 @@ export class ChunkManager {
     const chunk = this.chunks.get(key);
     if (!chunk) return;
 
+    this.mobManager?.onChunkUnloaded(cx, cz);
     this.rebuildQueue = this.rebuildQueue.filter((c) => c !== chunk);
     this._detachChunkMeshes(chunk);
     this.chunks.delete(key);
@@ -298,7 +303,20 @@ export class ChunkManager {
     const bz = Math.floor(pos.z);
     const chunk = this._getChunkAtBlock(bx, bz);
     if (!chunk) return false;
-    return chunk.blocks.has(blockKey(bx, by, bz));
+    const block = chunk.blocks.get(blockKey(bx, by, bz));
+    if (!block) return false;
+    return isSolidBlock(block.type);
+  }
+
+  isWaterAt(x, z) {
+    const bx = Math.floor(x);
+    const bz = Math.floor(z);
+    const chunk = this._getChunkAtBlock(bx, bz);
+    if (!chunk) return false;
+    for (const block of chunk.blocks.values()) {
+      if (block.x === bx && block.z === bz && block.type === 'water') return true;
+    }
+    return false;
   }
 
   getPickables() {
