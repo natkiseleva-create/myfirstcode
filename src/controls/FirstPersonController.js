@@ -5,22 +5,25 @@ const JUMP_VELOCITY = 9;
 const WALK_SPEED = 5;
 const SPRINT_SPEED = 9;
 const MOUSE_SENSITIVITY = 0.002;
-const PLAYER_HEIGHT = 1.7;
-const PLAYER_RADIUS = 0.35;
+export const PLAYER_HEIGHT = 1.7;
+export const PLAYER_RADIUS = 0.35;
+const STEP_HEIGHT = 1.05;
+const SKIN = 0.02;
 
 export class FirstPersonController {
   /**
    * @param {THREE.PerspectiveCamera} camera
    * @param {HTMLElement} domElement
    * @param {object} options
-   * @param {number} [options.groundY=0]
    * @param {(pos: THREE.Vector3) => boolean} [options.collides]
+   * @param {(x: number, z: number, feetY: number) => number} [options.getSupportHeight]
    */
   constructor(camera, domElement, options = {}) {
     this.camera = camera;
     this.domElement = domElement;
-    this.groundY = options.groundY ?? 0;
     this.collides = options.collides ?? (() => false);
+    this.getSupportHeight =
+      options.getSupportHeight ?? (() => 0);
 
     this.velocity = new THREE.Vector3();
     this.direction = new THREE.Vector3();
@@ -30,6 +33,8 @@ export class FirstPersonController {
     this.pitch = 0;
     this.isLocked = false;
     this.onGround = false;
+
+    this._sample = new THREE.Vector3();
 
     this.keys = {
       forward: false,
@@ -49,6 +54,10 @@ export class FirstPersonController {
     document.addEventListener('keyup', this._onKeyUp);
     document.addEventListener('mousemove', this._onMouseMove);
     document.addEventListener('pointerlockchange', this._onPointerLockChange);
+  }
+
+  getFeetY() {
+    return this.camera.position.y - PLAYER_HEIGHT;
   }
 
   requestPointerLock() {
@@ -135,6 +144,23 @@ export class FirstPersonController {
       (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
   }
 
+  _bodyCollidesAt(x, z, feetY) {
+    const samples = this._getBodySamples(x, z, feetY);
+    return samples.some((p) => this.collides(p));
+  }
+
+  _getBodySamples(x, z, feetY) {
+    const midY = feetY + PLAYER_HEIGHT * 0.5;
+    return [
+      new THREE.Vector3(x, feetY + SKIN, z),
+      new THREE.Vector3(x, feetY + PLAYER_HEIGHT - SKIN, z),
+      new THREE.Vector3(x + PLAYER_RADIUS, midY, z),
+      new THREE.Vector3(x - PLAYER_RADIUS, midY, z),
+      new THREE.Vector3(x, midY, z + PLAYER_RADIUS),
+      new THREE.Vector3(x, midY, z - PLAYER_RADIUS),
+    ];
+  }
+
   _applyHorizontalMovement(dt, speed) {
     if (this.moveInput.forward === 0 && this.moveInput.right === 0) {
       return;
@@ -145,48 +171,98 @@ export class FirstPersonController {
       this.yaw
     );
     this.direction.set(this.moveInput.right, 0, -this.moveInput.forward);
-    this.direction.normalize().applyQuaternion(yawQuat).multiplyScalar(speed);
+    this.direction.normalize().applyQuaternion(yawQuat).multiplyScalar(speed * dt);
 
-    const next = this.camera.position.clone().addScaledVector(this.direction, dt);
-    if (!this._horizontalBlocked(next)) {
-      this.camera.position.x = next.x;
-      this.camera.position.z = next.z;
-    } else {
-      const tryX = this.camera.position.clone();
-      tryX.x = next.x;
-      if (!this._horizontalBlocked(tryX)) {
-        this.camera.position.x = next.x;
-      }
-      const tryZ = this.camera.position.clone();
-      tryZ.z = next.z;
-      if (!this._horizontalBlocked(tryZ)) {
-        this.camera.position.z = next.z;
-      }
+    const feetY = this.getFeetY();
+    const nextX = this.camera.position.x + this.direction.x;
+    const nextZ = this.camera.position.z + this.direction.z;
+
+    if (!this._bodyCollidesAt(nextX, nextZ, feetY)) {
+      this.camera.position.x = nextX;
+      this.camera.position.z = nextZ;
+      return;
+    }
+
+    if (!this._bodyCollidesAt(nextX, this.camera.position.z, feetY)) {
+      this.camera.position.x = nextX;
+    } else if (!this._bodyCollidesAt(this.camera.position.x, nextZ, feetY)) {
+      this.camera.position.z = nextZ;
+    }
+
+    if (this._bodyCollidesAt(this.camera.position.x, this.camera.position.z, feetY)) {
+      this._tryStepUp(nextX, nextZ, feetY);
     }
   }
 
-  _horizontalBlocked(position) {
-    const feet = position.clone();
-    feet.y = this.groundY;
-    const head = feet.clone();
-    head.y += PLAYER_HEIGHT;
+  _tryStepUp(targetX, targetZ, feetY) {
+    const steppedFeetY = feetY + STEP_HEIGHT;
+    if (this._bodyCollidesAt(targetX, targetZ, steppedFeetY)) return;
 
-    const samples = [
-      feet,
-      head,
-      new THREE.Vector3(feet.x + PLAYER_RADIUS, feet.y + PLAYER_HEIGHT * 0.5, feet.z),
-      new THREE.Vector3(feet.x - PLAYER_RADIUS, feet.y + PLAYER_HEIGHT * 0.5, feet.z),
-      new THREE.Vector3(feet.x, feet.y + PLAYER_HEIGHT * 0.5, feet.z + PLAYER_RADIUS),
-      new THREE.Vector3(feet.x, feet.y + PLAYER_HEIGHT * 0.5, feet.z - PLAYER_RADIUS),
-    ];
+    const support = this.getSupportHeight(
+      targetX,
+      targetZ,
+      steppedFeetY,
+      PLAYER_RADIUS
+    );
+    if (Math.abs(support - steppedFeetY) > 0.2) return;
 
-    return samples.some((p) => this.collides(p));
+    this.camera.position.x = targetX;
+    this.camera.position.z = targetZ;
+    this.camera.position.y = steppedFeetY + PLAYER_HEIGHT;
+    this.velocity.y = Math.max(0, this.velocity.y);
+    this.onGround = true;
   }
 
   _syncCameraRotation() {
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch;
+  }
+
+  _resolveCeiling() {
+    const headY = this.camera.position.y - SKIN;
+    const head = this._sample.set(
+      this.camera.position.x,
+      headY,
+      this.camera.position.z
+    );
+    if (this.collides(head) && this.velocity.y > 0) {
+      const cellTop = Math.floor(headY) + 1;
+      this.camera.position.y = cellTop - SKIN;
+      this.velocity.y = 0;
+    }
+  }
+
+  _resolveGround() {
+    const feetY = this.getFeetY();
+    const support = this.getSupportHeight(
+      this.camera.position.x,
+      this.camera.position.z,
+      feetY,
+      PLAYER_RADIUS
+    );
+
+    if (this.velocity.y <= 0 && feetY <= support + 0.08) {
+      this.camera.position.y = support + PLAYER_HEIGHT;
+      this.velocity.y = 0;
+      this.onGround = true;
+      return;
+    }
+
+    const feet = this._sample.set(
+      this.camera.position.x,
+      feetY,
+      this.camera.position.z
+    );
+    if (this.velocity.y <= 0 && this.collides(feet)) {
+      const cellTop = Math.floor(feetY) + 1;
+      this.camera.position.y = cellTop + PLAYER_HEIGHT;
+      this.velocity.y = 0;
+      this.onGround = true;
+      return;
+    }
+
+    this.onGround = false;
   }
 
   update(dt) {
@@ -204,26 +280,13 @@ export class FirstPersonController {
     this.velocity.y -= GRAVITY * dt;
     this.camera.position.y += this.velocity.y * dt;
 
-    const floorY = this.groundY + PLAYER_HEIGHT;
-    if (this.camera.position.y <= floorY) {
-      this.camera.position.y = floorY;
-      this.velocity.y = 0;
-      this.onGround = true;
-    } else {
-      const feet = this.camera.position.clone();
-      feet.y -= PLAYER_HEIGHT;
-      if (this.collides(feet)) {
-        this.camera.position.y = floorY;
-        this.velocity.y = 0;
-        this.onGround = true;
-      } else {
-        this.onGround = false;
-      }
-    }
+    this._resolveCeiling();
+    this._resolveGround();
   }
 
   setPosition(x, y, z) {
     this.camera.position.set(x, y + PLAYER_HEIGHT, z);
     this.velocity.set(0, 0, 0);
+    this.onGround = true;
   }
 }

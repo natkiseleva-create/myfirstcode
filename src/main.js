@@ -1,5 +1,9 @@
 import * as THREE from 'three';
-import { FirstPersonController } from './controls/FirstPersonController.js';
+import {
+  FirstPersonController,
+  PLAYER_HEIGHT,
+  PLAYER_RADIUS,
+} from './controls/FirstPersonController.js';
 import { createWorld } from './world/createWorld.js';
 import { pickBlock, pickBlockFace } from './world/pickBlock.js';
 import { Inventory } from './inventory/Inventory.js';
@@ -8,8 +12,6 @@ import { InventoryUI } from './ui/InventoryUI.js';
 const canvas = document.getElementById('game');
 const overlay = document.getElementById('overlay');
 
-const PLAYER_HEIGHT = 1.7;
-const PLAYER_RADIUS = 0.35;
 const REACH = 5;
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -23,20 +25,26 @@ const camera = new THREE.PerspectiveCamera(
   200
 );
 
-const { scene, collides, getGroundHeight, getBlockMeshes, removeBlock, placeBlock } =
-  createWorld();
+const {
+  scene,
+  collides,
+  getSupportHeight,
+  getBlockMeshes,
+  removeBlock,
+  placeBlock,
+} = createWorld();
 
 const inventory = new Inventory();
 const inventoryUI = new InventoryUI(inventory);
 
 const controller = new FirstPersonController(camera, canvas, {
-  groundY: 0,
   collides,
+  getSupportHeight,
 });
 
 const spawnX = 0;
 const spawnZ = 0;
-const spawnGround = getGroundHeight(spawnX, spawnZ);
+const spawnGround = getSupportHeight(spawnX, spawnZ, 10, PLAYER_RADIUS);
 controller.setPosition(spawnX, spawnGround, spawnZ);
 
 let lastTime = performance.now();
@@ -116,9 +124,6 @@ function animate(now) {
   lastTime = now;
 
   if (controller.isLocked && !inventoryUI.isOpen) {
-    const feetX = camera.position.x;
-    const feetZ = camera.position.z;
-    controller.groundY = getGroundHeight(feetX, feetZ);
     controller.update(dt);
   }
 

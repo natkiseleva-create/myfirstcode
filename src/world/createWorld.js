@@ -27,7 +27,8 @@ const blockKey = (x, y, z) => `${x},${y},${z}`;
  * @returns {{
  *   scene: THREE.Scene,
  *   collides: (pos: THREE.Vector3) => boolean,
- *   getGroundHeight: (x: number, z: number) => number,
+ *   getColumnTop: (x: number, z: number) => number,
+ *   getSupportHeight: (x: number, z: number, feetY: number, radius?: number) => number,
  *   getBlockMeshes: () => THREE.Mesh[],
  *   removeBlock: (x: number, y: number, z: number) => string | null,
  *   placeBlock: (x: number, y: number, z: number, typeId: string) => boolean,
@@ -84,6 +85,39 @@ export function createWorld() {
     return addBlock(x, y, z, typeId);
   }
 
+  function getColumnTop(x, z) {
+    const bx = Math.floor(x);
+    const bz = Math.floor(z);
+    let maxY = -1;
+    for (const key of blockPositions) {
+      const [kx, ky, kz] = key.split(',').map(Number);
+      if (kx === bx && kz === bz && ky > maxY) {
+        maxY = ky;
+      }
+    }
+    return maxY >= 0 ? maxY + 1 : 0;
+  }
+
+  /** Highest walkable surface under the player footprint at or below feetY. */
+  function getSupportHeight(x, z, feetY, radius = 0.35) {
+    const offsets = [
+      [0, 0],
+      [radius, 0],
+      [-radius, 0],
+      [0, radius],
+      [0, -radius],
+    ];
+
+    let support = 0;
+    for (const [ox, oz] of offsets) {
+      const top = getColumnTop(x + ox, z + oz);
+      if (top <= feetY + 0.15) {
+        support = Math.max(support, top);
+      }
+    }
+    return support;
+  }
+
   const worldSize = 16;
   for (let x = -worldSize; x < worldSize; x++) {
     for (let z = -worldSize; z < worldSize; z++) {
@@ -114,19 +148,6 @@ export function createWorld() {
     return blockPositions.has(blockKey(bx, by, bz));
   }
 
-  function getGroundHeight(x, z) {
-    const bx = Math.floor(x);
-    const bz = Math.floor(z);
-    let maxY = -1;
-    for (const key of blockPositions) {
-      const [kx, ky, kz] = key.split(',').map(Number);
-      if (kx === bx && kz === bz && ky > maxY) {
-        maxY = ky;
-      }
-    }
-    return maxY >= 0 ? maxY + 1 : 0;
-  }
-
   function getBlockMeshes() {
     return [...blocks.values()];
   }
@@ -134,7 +155,8 @@ export function createWorld() {
   return {
     scene,
     collides,
-    getGroundHeight,
+    getColumnTop,
+    getSupportHeight,
     getBlockMeshes,
     removeBlock,
     placeBlock,
