@@ -2,8 +2,8 @@ export const BLOCK_TYPES = {
   grass: {
     id: 'grass',
     label: 'Трава',
-    topColor: 0x5a9e3a,
-    sideColor: 0x6b4423,
+    topColor: 0x6ecf4a,
+    sideColor: 0x5cb848,
     stackSize: 64,
   },
   dirt: {
