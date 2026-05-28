@@ -8,9 +8,13 @@ import { createWorld } from './world/createWorld.js';
 import { pickBlock, pickBlockFace } from './world/pickBlock.js';
 import { Inventory } from './inventory/Inventory.js';
 import { InventoryUI } from './ui/InventoryUI.js';
+import { GAME_MODES } from './modes/gameModes.js';
 
 const canvas = document.getElementById('game');
+const modeMenu = document.getElementById('mode-menu');
 const overlay = document.getElementById('overlay');
+const winMessage = document.getElementById('win-message');
+const modeHint = document.getElementById('mode-hint');
 
 const REACH = 5;
 
@@ -25,31 +29,11 @@ const camera = new THREE.PerspectiveCamera(
   250
 );
 
-const {
-  scene,
-  updateWorld,
-  ensureWorldLoaded,
-  collides,
-  getSupportHeight,
-  getPickables,
-  removeBlock,
-  placeBlock,
-} = createWorld();
-
-const inventory = new Inventory();
-const inventoryUI = new InventoryUI(inventory);
-
-const controller = new FirstPersonController(camera, canvas, {
-  collides,
-  getSupportHeight,
-});
-
-const spawnX = 0;
-const spawnZ = 0;
-ensureWorldLoaded(spawnX, spawnZ);
-const spawnGround = getSupportHeight(spawnX, spawnZ, 10, PLAYER_RADIUS);
-controller.setPosition(spawnX, spawnGround, spawnZ);
-
+let world = null;
+let controller = null;
+let inventory = null;
+let inventoryUI = null;
+let currentMode = null;
 let lastTime = performance.now();
 
 function playerOccupiesBlock(x, y, z) {
@@ -71,22 +55,22 @@ function playerOccupiesBlock(x, y, z) {
 }
 
 function tryBreakBlock() {
-  if (!controller.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI.isOpen) return;
 
-  const target = pickBlock(camera, getPickables(), REACH);
+  const target = pickBlock(camera, world.getPickables(), REACH);
   if (!target) return;
 
-  const type = removeBlock(target.x, target.y, target.z);
+  const type = world.removeBlock(target.x, target.y, target.z);
   if (type) {
     inventory.addItem(type, 1);
   }
 }
 
 function tryPlaceBlock() {
-  if (!controller.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI.isOpen) return;
   if (!inventory.hasSelected()) return;
 
-  const hit = pickBlockFace(camera, getPickables(), REACH);
+  const hit = pickBlockFace(camera, world.getPickables(), REACH);
   if (!hit) return;
 
   const { place } = hit;
@@ -94,11 +78,11 @@ function tryPlaceBlock() {
   if (!selected.type) return;
 
   if (playerOccupiesBlock(place.x, place.y, place.z)) return;
-  if (collides(new THREE.Vector3(place.x + 0.5, place.y + 0.5, place.z + 0.5))) {
+  if (world.collides(new THREE.Vector3(place.x + 0.5, place.y + 0.5, place.z + 0.5))) {
     return;
   }
 
-  if (placeBlock(place.x, place.y, place.z, selected.type)) {
+  if (world.placeBlock(place.x, place.y, place.z, selected.type)) {
     inventory.consumeSelected(1);
   }
 }
@@ -114,18 +98,84 @@ function toggleInventory() {
   }
 }
 
+function showModeMenu() {
+  document.exitPointerLock();
+  if (world) {
+    world.dispose();
+    world = null;
+  }
+
+  currentMode = null;
+  controller = null;
+  inventory = null;
+  inventoryUI = null;
+
+  modeMenu.classList.remove('hidden');
+  overlay.classList.add('hidden');
+  winMessage.classList.add('hidden');
+  document.getElementById('hotbar').classList.add('hidden');
+  document.getElementById('inventory-panel').classList.add('hidden');
+}
+
+function startMode(mode) {
+  currentMode = mode;
+  modeMenu.classList.add('hidden');
+  document.getElementById('hotbar').classList.remove('hidden');
+
+  world = createWorld(mode);
+  inventory = new Inventory();
+  inventoryUI = new InventoryUI(inventory);
+
+  controller = new FirstPersonController(camera, canvas, {
+    collides: world.collides,
+    getSupportHeight: world.getSupportHeight,
+  });
+
+  world.ensureWorldLoaded(world.spawn.x, world.spawn.z);
+  const ground = world.getSupportHeight(
+    world.spawn.x,
+    world.spawn.z,
+    10,
+    PLAYER_RADIUS
+  );
+  controller.setPosition(world.spawn.x, ground, world.spawn.z);
+
+  if (mode === GAME_MODES.MAZE) {
+    modeHint.textContent =
+      'Найдите золотой столб — это выход из лабиринта. Esc — в меню режимов.';
+  } else {
+    modeHint.textContent =
+      'Бесконечный мир: исследуйте, добывайте ресурсы, стройте. Esc — в меню режимов.';
+  }
+
+  overlay.classList.remove('hidden');
+  winMessage.classList.add('hidden');
+}
+
+function checkMazeWin() {
+  if (currentMode !== GAME_MODES.MAZE || !world) return;
+  if (world.checkWin(camera.position.x, camera.position.z)) {
+    document.exitPointerLock();
+    winMessage.classList.remove('hidden');
+    overlay.classList.add('hidden');
+  }
+}
+
 function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
-  updateWorld(camera.position.x, camera.position.z);
+  if (!world) return;
+
+  world.updateWorld(camera.position.x, camera.position.z);
 
   if (controller.isLocked && !inventoryUI.isOpen) {
     controller.update(dt);
+    checkMazeWin();
   }
 
-  renderer.render(scene, camera);
+  renderer.render(world.scene, camera);
 }
 
 function onResize() {
@@ -136,48 +186,64 @@ function onResize() {
   renderer.setSize(w, h);
 }
 
+modeMenu.querySelectorAll('[data-mode]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    startMode(btn.dataset.mode);
+  });
+});
+
 overlay.addEventListener('click', () => {
-  if (inventoryUI.isOpen) return;
+  if (!controller || inventoryUI.isOpen) return;
   controller.requestPointerLock();
   overlay.classList.add('hidden');
 });
 
-canvas.addEventListener('mousedown', (event) => {
-  if (!controller.isLocked || inventoryUI.isOpen) return;
+document.getElementById('btn-back-menu')?.addEventListener('click', showModeMenu);
 
-  if (event.button === 0) {
-    tryBreakBlock();
-  } else if (event.button === 2) {
-    tryPlaceBlock();
-  }
+winMessage.querySelector('[data-action="menu"]')?.addEventListener('click', showModeMenu);
+winMessage.querySelector('[data-action="retry"]')?.addEventListener('click', () => {
+  if (currentMode) startMode(currentMode);
+});
+
+canvas.addEventListener('mousedown', (event) => {
+  if (!controller?.isLocked || inventoryUI.isOpen) return;
+  if (event.button === 0) tryBreakBlock();
+  else if (event.button === 2) tryPlaceBlock();
 });
 
 canvas.addEventListener('wheel', (event) => {
-  if (!controller.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI.isOpen) return;
   event.preventDefault();
   inventory.cycleSelection(event.deltaY > 0 ? 1 : -1);
 });
 
-canvas.addEventListener('contextmenu', (event) => {
-  event.preventDefault();
-});
+canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
 document.addEventListener('keydown', (event) => {
-  if (event.code === 'KeyE') {
+  if (event.code === 'Escape' && currentMode) {
+    showModeMenu();
+    return;
+  }
+
+  if (event.code === 'KeyE' && world) {
     toggleInventory();
     return;
   }
 
-  if (inventoryUI.isOpen) return;
+  if (!inventoryUI || inventoryUI.isOpen) return;
 
   const digit = event.code.match(/^Digit([1-9])$/);
-  if (digit && controller.isLocked) {
+  if (digit && controller?.isLocked) {
     inventory.selectSlot(Number(digit[1]) - 1);
   }
 });
 
 document.addEventListener('pointerlockchange', () => {
-  if (document.pointerLockElement !== canvas && !inventoryUI.isOpen) {
+  if (!world || inventoryUI?.isOpen) return;
+  if (document.pointerLockElement !== canvas && !winMessage.classList.contains('hidden')) {
+    return;
+  }
+  if (document.pointerLockElement !== canvas) {
     overlay.classList.remove('hidden');
   }
 });

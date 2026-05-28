@@ -7,27 +7,51 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="overlay">
+    <div id="mode-menu">
       <h1>Voxel Craft</h1>
-      <p>Кликните, чтобы начать</p>
+      <p class="mode-subtitle">Выберите режим игры</p>
+      <div class="mode-buttons">
+        <button type="button" class="mode-btn" data-mode="free">
+          <span class="mode-btn-title">Свободный мир</span>
+          <span class="mode-btn-desc">Бесконечная генерация, деревья, строительство</span>
+        </button>
+        <button type="button" class="mode-btn" data-mode="maze">
+          <span class="mode-btn-title">Лабиринт</span>
+          <span class="mode-btn-desc">Найдите золотой выход из каменного лабиринта</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="overlay" class="hidden">
+      <h2 id="mode-hint">Кликните, чтобы начать</h2>
+      <p>Нажмите на экран для захвата мыши</p>
       <ul>
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — движение</li>
         <li><kbd>Пробел</kbd> — прыжок</li>
         <li><kbd>Shift</kbd> — бег</li>
         <li>Мышь — обзор</li>
-        <li><kbd>ЛКМ</kbd> — сломать блок</li>
-        <li><kbd>ПКМ</kbd> — поставить блок</li>
-        <li><kbd>1</kbd>–<kbd>9</kbd> / колёсико — слот хотбара</li>
-        <li><kbd>E</kbd> — инвентарь</li>
-        <li><kbd>Esc</kbd> — выйти из режима игры</li>
+        <li><kbd>ЛКМ</kbd> — сломать · <kbd>ПКМ</kbd> — поставить</li>
+        <li><kbd>1</kbd>–<kbd>9</kbd> — хотбар · <kbd>E</kbd> — инвентарь</li>
+        <li><kbd>Esc</kbd> — меню режимов</li>
       </ul>
     </div>
+
+    <div id="win-message" class="hidden">
+      <h2>Лабиринт пройден!</h2>
+      <p>Вы нашли выход.</p>
+      <div class="win-actions">
+        <button type="button" data-action="retry">Играть снова</button>
+        <button type="button" data-action="menu">Меню режимов</button>
+      </div>
+    </div>
+
     <div id="crosshair" aria-hidden="true"></div>
-    <div id="hotbar" class="hotbar"></div>
+    <div id="hotbar" class="hotbar hidden"></div>
     <div id="inventory-panel" class="inventory-panel hidden">
       <h2>Инвентарь</h2>
       <div id="inventory-storage" class="inventory-grid"></div>
       <div id="inventory-hotbar" class="hotbar hotbar-panel"></div>
+      <button type="button" id="btn-back-menu" class="btn-secondary">Меню режимов</button>
     </div>
     <canvas id="game"></canvas>
     <script type="module" src="/src/main.js"></script>

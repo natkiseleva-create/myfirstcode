@@ -34,6 +34,13 @@ export const BLOCK_TYPES = {
     sideColor: 0x2d6b28,
     stackSize: 64,
   },
+  gold: {
+    id: 'gold',
+    label: 'Выход',
+    topColor: 0xffd54f,
+    sideColor: 0xffb300,
+    stackSize: 64,
+  },
 };
 
 export function getBlockType(id) {

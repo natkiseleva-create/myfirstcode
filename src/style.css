@@ -209,3 +209,124 @@ kbd {
   background: #333;
   font-size: 0.85em;
 }
+
+#mode-menu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: rgba(10, 12, 24, 0.92);
+  z-index: 20;
+  text-align: center;
+  padding: 1rem;
+}
+
+#mode-menu.hidden {
+  display: none;
+}
+
+#mode-menu h1 {
+  font-size: 2.5rem;
+}
+
+.mode-subtitle {
+  opacity: 0.85;
+  margin-top: -0.5rem;
+}
+
+.mode-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: min(420px, 90vw);
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(60, 70, 100, 0.5);
+  color: #eee;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mode-btn:hover {
+  border-color: #8bc34a;
+  background: rgba(80, 100, 60, 0.45);
+}
+
+.mode-btn-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.mode-btn-desc {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+#overlay h2 {
+  font-size: 1.4rem;
+  max-width: 32rem;
+  line-height: 1.4;
+}
+
+#win-message {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 15;
+  text-align: center;
+}
+
+#win-message.hidden {
+  display: none;
+}
+
+#win-message h2 {
+  font-size: 2rem;
+  color: #ffd54f;
+}
+
+.win-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.win-actions button,
+.btn-secondary {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #5cb848;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.win-actions button:hover,
+.btn-secondary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-secondary {
+  display: block;
+  margin: 12px auto 0;
+  background: #555;
+}
