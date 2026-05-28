@@ -1,5 +1,5 @@
 import { randomAt } from './noise.js';
-import { placeTree, pruneOrphanWood } from './generateTrees.js';
+import { placeTree, pruneOrphanWood, isTreeSpawnColumn, hasTreeNearby } from './generateTrees.js';
 import { canPlaceTree, getTerrainHeight } from './terrainGenerator.js';
 import { fillTerrainColumn } from './terrainRules.js';
 
@@ -51,7 +51,9 @@ export function generateChunkBlocks(cx, cz) {
 
       if (wx * wx + wz * wz < 36) continue;
       if (!canPlaceTree(wx, wz)) continue;
+      if (!isTreeSpawnColumn(wx, wz)) continue;
       if (randomAt(wx * 3 + 17, wz * 7 + 31) > TREE_SPAWN_THRESHOLD) continue;
+      if (hasTreeNearby(blocks, wx, wz)) continue;
 
       const top = getColumnTop(wx, wz);
       if (top < 6) continue;

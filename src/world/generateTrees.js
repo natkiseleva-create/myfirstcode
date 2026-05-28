@@ -1,6 +1,33 @@
 import { randomAt } from './noise.js';
 
 const CROWN_RADIUS = 2;
+
+/** Minimum spacing between tree trunks (one tree per cell). */
+export const TREE_CELL = 9;
+
+/** Deterministic trunk column — same in every chunk, no overlaps. */
+export function isTreeSpawnColumn(wx, wz) {
+  const cell = TREE_CELL;
+  const gx = Math.floor(wx / cell);
+  const gz = Math.floor(wz / cell);
+  const tx = gx * cell + 2 + Math.floor(randomAt(gx, gz, 311) * (cell - 4));
+  const tz = gz * cell + 2 + Math.floor(randomAt(gz, gx, 317) * (cell - 4));
+  return wx === tx && wz === tz;
+}
+
+/** @param {{ x: number, z: number, type: string }[]} blocks */
+export function hasTreeNearby(blocks, wx, wz, radius = TREE_CELL - 2) {
+  const r2 = radius * radius;
+  for (const block of blocks) {
+    if (block.type !== 'wood' && block.type !== 'leaves') continue;
+    const dx = block.x - wx;
+    const dz = block.z - wz;
+    if (dx * dx + dz * dz < r2) return true;
+  }
+  return false;
+}
+
+
 const MIN_CROWN_LEAVES = 12;
 
 /**
