@@ -74,10 +74,7 @@ body {
 }
 
 .inventory-panel {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  position: relative;
   padding: 16px;
   background: rgba(20, 20, 30, 0.92);
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -367,4 +364,52 @@ kbd {
 .craft-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.inventory-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  cursor: default;
+}
+
+.inventory-backdrop.hidden {
+  display: none;
+}
+
+.inventory-panel {
+  position: relative;
+  transform: none;
+  left: auto;
+  top: auto;
+}
+
+.btn-close-inv {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-close-inv:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.inv-hint {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.55;
 }

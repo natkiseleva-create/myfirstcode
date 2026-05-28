@@ -4,36 +4,63 @@ import { CRAFT_RECIPES } from '../inventory/crafting.js';
 export class InventoryUI {
   /**
    * @param {import('../inventory/Inventory.js').Inventory} inventory
+   * @param {{ onClose?: () => void }} [options]
    */
-  constructor(inventory) {
+  constructor(inventory, options = {}) {
     this.inventory = inventory;
+    this.onClose = options.onClose ?? (() => {});
     this.isOpen = false;
 
     this.hotbarEl = document.getElementById('hotbar');
+    this.backdropEl = document.getElementById('inventory-backdrop');
     this.panelEl = document.getElementById('inventory-panel');
     this.storageEl = document.getElementById('inventory-storage');
     this.panelHotbarEl = document.getElementById('inventory-hotbar');
     this.craftPlanksBtn = document.getElementById('craft-planks');
+    this.closeBtn = document.getElementById('btn-close-inventory');
 
     inventory.onChange(() => this.render());
 
-    this.craftPlanksBtn?.addEventListener('click', () => {
+    this.craftPlanksBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.inventory.craft('wood_to_planks', this.inventory.selectedSlot);
     });
+
+    this.closeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.close();
+    });
+
+    this.backdropEl?.addEventListener('click', () => this.close());
+    this.panelEl?.addEventListener('click', (e) => e.stopPropagation());
 
     this.render();
   }
 
   setOpen(open) {
     this.isOpen = open;
-    this.hotbarEl.classList.toggle('hidden', open);
-    this.panelEl.classList.toggle('hidden', !open);
+    this.hotbarEl?.classList.toggle('hidden', open);
+    this.backdropEl?.classList.toggle('hidden', !open);
     this.render();
   }
 
+  open() {
+    this.setOpen(true);
+  }
+
+  close() {
+    if (!this.isOpen) return;
+    this.setOpen(false);
+    this.onClose();
+  }
+
   toggle() {
-    this.setOpen(!this.isOpen);
-    return this.isOpen;
+    if (this.isOpen) {
+      this.close();
+      return false;
+    }
+    this.open();
+    return true;
   }
 
   _updateCraftButtons() {
@@ -106,7 +133,8 @@ export class InventoryUI {
         }
       }
 
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (index < this.inventory.hotbarSize) {
           this.inventory.selectSlot(index);
         }

@@ -93,15 +93,22 @@ function tryPlaceBlock() {
   }
 }
 
-function toggleInventory() {
-  const opening = inventoryUI.toggle();
+function openInventory() {
+  if (!inventoryUI || inventoryUI.isOpen) return;
+  document.exitPointerLock();
+  overlay.classList.add('hidden');
+  inventoryUI.open();
+}
 
-  if (opening) {
-    document.exitPointerLock();
-    overlay.classList.add('hidden');
-  } else if (document.pointerLockElement !== canvas) {
-    overlay.classList.remove('hidden');
-  }
+function closeInventory() {
+  if (!inventoryUI || !inventoryUI.isOpen) return;
+  inventoryUI.close();
+}
+
+function toggleInventory() {
+  if (!inventoryUI) return;
+  if (inventoryUI.isOpen) closeInventory();
+  else openInventory();
 }
 
 function showModeMenu() {
@@ -120,7 +127,7 @@ function showModeMenu() {
   overlay.classList.add('hidden');
   winMessage.classList.add('hidden');
   document.getElementById('hotbar').classList.add('hidden');
-  document.getElementById('inventory-panel').classList.add('hidden');
+  document.getElementById('inventory-backdrop')?.classList.add('hidden');
 }
 
 function startMode(mode) {
@@ -130,7 +137,13 @@ function startMode(mode) {
 
   world = createWorld(mode);
   inventory = new Inventory();
-  inventoryUI = new InventoryUI(inventory);
+  inventoryUI = new InventoryUI(inventory, {
+    onClose: () => {
+      if (document.pointerLockElement !== canvas) {
+        overlay.classList.remove('hidden');
+      }
+    },
+  });
 
   controller = new FirstPersonController(camera, canvas, {
     collides: world.collides,
@@ -228,11 +241,17 @@ canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
 document.addEventListener('keydown', (event) => {
   if (event.code === 'Escape' && currentMode) {
+    if (inventoryUI?.isOpen) {
+      event.preventDefault();
+      closeInventory();
+      return;
+    }
     showModeMenu();
     return;
   }
 
   if (event.code === 'KeyE' && world) {
+    event.preventDefault();
     toggleInventory();
     return;
   }

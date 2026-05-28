@@ -47,8 +47,10 @@
 
     <div id="crosshair" aria-hidden="true"></div>
     <div id="hotbar" class="hotbar hidden"></div>
-    <div id="inventory-panel" class="inventory-panel hidden">
-      <h2>Инвентарь</h2>
+    <div id="inventory-backdrop" class="inventory-backdrop hidden">
+    <div id="inventory-panel" class="inventory-panel">
+      <button type="button" id="btn-close-inventory" class="btn-close-inv" aria-label="Закрыть">×</button>
+      <h2>Инвентарь <span class="inv-hint">E или Esc</span></h2>
       <div class="craft-panel">
         <h3>Крафт</h3>
         <button type="button" id="craft-planks" class="craft-btn">
@@ -58,6 +60,7 @@
       <div id="inventory-storage" class="inventory-grid"></div>
       <div id="inventory-hotbar" class="hotbar hotbar-panel"></div>
       <button type="button" id="btn-back-menu" class="btn-secondary">Меню режимов</button>
+    </div>
     </div>
     <canvas id="game"></canvas>
     <script type="module" src="/src/main.js"></script>
