@@ -44,7 +44,7 @@ export function createWorld(mode = GAME_MODES.FREE) {
     };
   }
 
-  const scene = createScene(50, 140);
+  const scene = createScene(35, 90);
   const chunks = new ChunkManager(scene);
 
   return {
@@ -60,10 +60,6 @@ export function createWorld(mode = GAME_MODES.FREE) {
     removeBlock: (x, y, z) => chunks.removeBlock(x, y, z),
     placeBlock: (x, y, z, typeId) => chunks.placeBlock(x, y, z, typeId),
     checkWin: () => false,
-    dispose: () => {
-      for (const chunk of [...chunks.chunks.values()]) {
-        chunks.unloadChunk(chunk.cx, chunk.cz);
-      }
-    },
+    dispose: () => chunks.dispose(),
   };
 }

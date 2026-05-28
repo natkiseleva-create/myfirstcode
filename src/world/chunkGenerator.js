@@ -57,7 +57,7 @@ export function generateChunkBlocks(cx, cz) {
       const wz = baseZ + lz;
 
       if (wx * wx + wz * wz < 36) continue;
-      if (randomAt(wx * 3 + 17, wz * 7 + 31) > 0.028) continue;
+      if (randomAt(wx * 3 + 17, wz * 7 + 31) > 0.018) continue;
 
       const top = getColumnTop(wx, wz);
       if (top > 2.5) continue;

@@ -1,22 +1,30 @@
 import { CHUNK_SIZE, generateChunkBlocks } from './chunkGenerator.js';
-import { buildChunkMeshes, disposeChunkMeshes } from './chunkMeshBuilder.js';
+import {
+  buildChunkMeshes,
+  disposeChunkMeshes,
+  removeBlockInstance,
+  blockRefKey as meshBlockKey,
+} from './chunkMeshBuilder.js';
 
-const VIEW_DISTANCE = 3;
-const UNLOAD_DISTANCE = 4;
-const CHUNKS_PER_FRAME = 2;
+const VIEW_DISTANCE = 2;
+const UNLOAD_DISTANCE = 3;
+const CHUNKS_PER_FRAME = 1;
 const GROUND_EPSILON = 0.08;
 
 const blockKey = (x, y, z) => `${x},${y},${z}`;
 const chunkKey = (cx, cz) => `${cx},${cz}`;
+const columnKey = (x, z) => `${x},${z}`;
 
 export class ChunkManager {
-  /** @param {THREE.Scene} scene */
   constructor(scene) {
     this.scene = scene;
     this.chunks = new Map();
     this.modifications = new Map();
+    this.modsByChunk = new Map();
     this.pickables = [];
+    this.pickableSet = new Set();
     this.loadQueue = [];
+    this.rebuildQueue = [];
     this.lastPlayerChunk = { cx: NaN, cz: NaN };
   }
 
@@ -30,6 +38,48 @@ export class ChunkManager {
       cx: Math.floor(x / CHUNK_SIZE),
       cz: Math.floor(z / CHUNK_SIZE),
     };
+  }
+
+  _modChunkIndex(cx, cz) {
+    return chunkKey(cx, cz);
+  }
+
+  _setModification(key, value, cx, cz) {
+    if (value === undefined) {
+      this.modifications.delete(key);
+    } else {
+      this.modifications.set(key, value);
+    }
+
+    const ck = this._modChunkIndex(cx, cz);
+    if (!this.modsByChunk.has(ck)) this.modsByChunk.set(ck, new Map());
+    const bucket = this.modsByChunk.get(ck);
+    if (value === undefined) bucket.delete(key);
+    else bucket.set(key, value);
+  }
+
+  _updateColumnTop(chunk, x, z) {
+    let maxY = -Infinity;
+    for (const block of chunk.blocks.values()) {
+      if (block.x === x && block.z === z && block.y > maxY) {
+        maxY = block.y;
+      }
+    }
+    if (maxY === -Infinity) {
+      chunk.columnTops.delete(columnKey(x, z));
+    } else {
+      chunk.columnTops.set(columnKey(x, z), maxY + 1);
+    }
+  }
+
+  _rebuildColumnTops(chunk) {
+    chunk.columnTops.clear();
+    for (const block of chunk.blocks.values()) {
+      const ck = columnKey(block.x, block.z);
+      const top = (chunk.columnTops.get(ck) ?? -Infinity);
+      const surface = block.y + 1;
+      if (surface > top) chunk.columnTops.set(ck, surface);
+    }
   }
 
   _collectChunkBlocks(cx, cz) {
@@ -46,15 +96,11 @@ export class ChunkManager {
       seen.add(key);
     }
 
-    const minX = cx * CHUNK_SIZE;
-    const maxX = minX + CHUNK_SIZE - 1;
-    const minZ = cz * CHUNK_SIZE;
-    const maxZ = minZ + CHUNK_SIZE - 1;
-
-    for (const [key, type] of this.modifications) {
-      if (type === null || seen.has(key)) continue;
-      const { x, y, z } = this._parseKey(key);
-      if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+    const bucket = this.modsByChunk.get(chunkKey(cx, cz));
+    if (bucket) {
+      for (const [key, type] of bucket) {
+        if (type === null || seen.has(key)) continue;
+        const { x, y, z } = this._parseKey(key);
         blockMap.set(key, { x, y, z, type });
         seen.add(key);
       }
@@ -63,35 +109,75 @@ export class ChunkManager {
     return blockMap;
   }
 
-  _rebuildChunkMeshes(chunk) {
-    if (chunk.group) {
-      for (const mesh of chunk.pickables) {
-        const idx = this.pickables.indexOf(mesh);
-        if (idx >= 0) this.pickables.splice(idx, 1);
-      }
-      this.scene.remove(chunk.group);
-      disposeChunkMeshes(chunk.group);
-    }
+  _attachChunkMeshes(chunk, built) {
+    chunk.group = built.group;
+    chunk.pickables = built.pickables;
+    chunk.refs = built.refs;
+    chunk.lists = built.lists;
 
-    const blocks = [...chunk.blocks.values()];
-    const { group, pickables } = buildChunkMeshes(blocks);
-    chunk.group = group;
-    chunk.pickables = pickables;
-    this.pickables.push(...pickables);
-    this.scene.add(group);
+    for (const mesh of built.pickables) {
+      if (!this.pickableSet.has(mesh)) {
+        this.pickableSet.add(mesh);
+        this.pickables.push(mesh);
+      }
+    }
+    this.scene.add(built.group);
+  }
+
+  _detachChunkMeshes(chunk) {
+    for (const mesh of chunk.pickables) {
+      this.pickableSet.delete(mesh);
+      const idx = this.pickables.indexOf(mesh);
+      if (idx >= 0) this.pickables.splice(idx, 1);
+    }
+    if (chunk.group) {
+      this.scene.remove(chunk.group);
+      disposeChunkMeshes(chunk.group, chunk.pickables);
+    }
+    chunk.group = null;
+    chunk.pickables = [];
+    chunk.refs = new Map();
+    chunk.lists = new Map();
+  }
+
+  _rebuildChunkMeshes(chunk) {
+    this._detachChunkMeshes(chunk);
+    const built = buildChunkMeshes([...chunk.blocks.values()]);
+    this._attachChunkMeshes(chunk, built);
+  }
+
+  _queueRebuild(chunk) {
+    if (!this.rebuildQueue.includes(chunk)) {
+      this.rebuildQueue.push(chunk);
+    }
+  }
+
+  _processRebuildQueue() {
+    const chunk = this.rebuildQueue.shift();
+    if (!chunk) return;
+    this._rebuildChunkMeshes(chunk);
   }
 
   _createChunk(cx, cz) {
     const blocks = this._collectChunkBlocks(cx, cz);
-    const chunk = { cx, cz, blocks, group: null, pickables: [] };
+    const chunk = {
+      cx,
+      cz,
+      blocks,
+      columnTops: new Map(),
+      group: null,
+      pickables: [],
+      refs: new Map(),
+      lists: new Map(),
+    };
+    this._rebuildColumnTops(chunk);
     this._rebuildChunkMeshes(chunk);
     this.chunks.set(chunkKey(cx, cz), chunk);
     return chunk;
   }
 
   loadChunk(cx, cz) {
-    const key = chunkKey(cx, cz);
-    if (this.chunks.has(key)) return;
+    if (this.chunks.has(chunkKey(cx, cz))) return;
     this._createChunk(cx, cz);
   }
 
@@ -116,16 +202,8 @@ export class ChunkManager {
     const chunk = this.chunks.get(key);
     if (!chunk) return;
 
-    for (const mesh of chunk.pickables) {
-      const idx = this.pickables.indexOf(mesh);
-      if (idx >= 0) this.pickables.splice(idx, 1);
-    }
-
-    if (chunk.group) {
-      this.scene.remove(chunk.group);
-      disposeChunkMeshes(chunk.group);
-    }
-
+    this.rebuildQueue = this.rebuildQueue.filter((c) => c !== chunk);
+    this._detachChunkMeshes(chunk);
     this.chunks.delete(key);
   }
 
@@ -157,6 +235,7 @@ export class ChunkManager {
     }
 
     this._processLoadQueue();
+    this._processRebuildQueue();
   }
 
   ensureLoaded(playerX, playerZ) {
@@ -189,36 +268,15 @@ export class ChunkManager {
     const bz = Math.floor(z);
     const chunk = this._getChunkAtBlock(bx, bz);
     if (!chunk) return 0;
-
-    let maxY = -Infinity;
-    for (const block of chunk.blocks.values()) {
-      if (block.x === bx && block.z === bz && block.y > maxY) {
-        maxY = block.y;
-      }
-    }
-
-    if (maxY === -Infinity) return 0;
-    return maxY + 1;
+    return chunk.columnTops.get(columnKey(bx, bz)) ?? 0;
   }
 
-  getSupportHeight(x, z, feetY, radius = 0.35) {
-    const offsets = [
-      [0, 0],
-      [radius, 0],
-      [-radius, 0],
-      [0, radius],
-      [0, -radius],
-    ];
-
-    let support = -Infinity;
-    for (const [ox, oz] of offsets) {
-      const top = this.getColumnTop(x + ox, z + oz);
-      if (top <= feetY + GROUND_EPSILON) {
-        support = Math.max(support, top);
-      }
+  getSupportHeight(x, z, feetY) {
+    const top = this.getColumnTop(x, z);
+    if (top <= feetY + GROUND_EPSILON) {
+      return top;
     }
-
-    return support === -Infinity ? 0 : support;
+    return feetY > 0 ? feetY : 0;
   }
 
   collides(pos) {
@@ -236,24 +294,49 @@ export class ChunkManager {
 
   removeBlock(x, y, z) {
     const key = blockKey(x, y, z);
+    const { cx, cz } = this._chunkCoords(x, z);
     const chunk = this._getChunkAtBlock(x, z);
     if (!chunk || !chunk.blocks.has(key)) return null;
 
-    const type = chunk.blocks.get(key).type;
+    const block = chunk.blocks.get(key);
+    const type = block.type;
     chunk.blocks.delete(key);
-    this.modifications.set(key, null);
-    this._rebuildChunkMeshes(chunk);
+    this._setModification(key, null, cx, cz);
+    this._updateColumnTop(chunk, x, z);
+
+    const refKey = meshBlockKey(block);
+    if (!removeBlockInstance(chunk.refs, chunk.lists, refKey, this.pickables, this.pickableSet)) {
+      this._queueRebuild(chunk);
+    }
+
     return type;
   }
 
   placeBlock(x, y, z, typeId) {
     const key = blockKey(x, y, z);
+    const { cx, cz } = this._chunkCoords(x, z);
     const chunk = this._getChunkAtBlock(x, z);
     if (!chunk || chunk.blocks.has(key)) return false;
 
-    chunk.blocks.set(key, { x, y, z, type: typeId });
-    this.modifications.set(key, typeId);
-    this._rebuildChunkMeshes(chunk);
+    const block = { x, y, z, type: typeId };
+    chunk.blocks.set(key, block);
+    this._setModification(key, typeId, cx, cz);
+    this._updateColumnTop(chunk, x, z);
+
+    this._queueRebuild(chunk);
     return true;
+  }
+
+  dispose() {
+    for (const chunk of [...this.chunks.values()]) {
+      this.unloadChunk(chunk.cx, chunk.cz);
+    }
+    this.chunks.clear();
+    this.modifications.clear();
+    this.modsByChunk.clear();
+    this.pickables = [];
+    this.pickableSet.clear();
+    this.loadQueue = [];
+    this.rebuildQueue = [];
   }
 }
