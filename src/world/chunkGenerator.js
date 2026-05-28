@@ -1,8 +1,8 @@
 import { randomAt } from './noise.js';
 import { placeTree } from './generateTrees.js';
+import { stoneLayersForColumn } from './terrainRules.js';
 
 export const CHUNK_SIZE = 16;
-const STONE_DEPTH = 4;
 
 /**
  * Procedural blocks for one chunk (world coordinates).
@@ -36,8 +36,8 @@ export function generateChunkBlocks(cx, cz) {
       const wx = baseX + lx;
       const wz = baseZ + lz;
 
-      for (let y = -STONE_DEPTH; y < 0; y++) {
-        add(wx, y, wz, 'stone');
+      for (const stone of stoneLayersForColumn(wx, wz)) {
+        add(stone.x, stone.y, stone.z, stone.type);
       }
 
       add(wx, 0, wz, 'grass');

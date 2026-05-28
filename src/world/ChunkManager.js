@@ -1,5 +1,6 @@
 import { CHUNK_SIZE, generateChunkBlocks } from './chunkGenerator.js';
 import { buildChunkMeshes, disposeChunkMeshes } from './chunkMeshBuilder.js';
+import { isInfiniteStone } from './terrainRules.js';
 
 const VIEW_DISTANCE = 3;
 const UNLOAD_DISTANCE = 4;
@@ -78,6 +79,14 @@ export class ChunkManager {
     chunk.pickables = pickables;
     this.pickables.push(...pickables);
     this.scene.add(group);
+  }
+
+  _extendStoneDown(chunk, x, z, y) {
+    if (y >= 0) return;
+    const key = blockKey(x, y, z);
+    if (this.modifications.get(key) === null) return;
+    if (chunk.blocks.has(key)) return;
+    chunk.blocks.set(key, { x, y, z, type: 'stone' });
   }
 
   _createChunk(cx, cz) {
@@ -222,9 +231,13 @@ export class ChunkManager {
     const bx = Math.floor(pos.x);
     const by = Math.floor(pos.y);
     const bz = Math.floor(pos.z);
-    const chunk = this._getChunkAtBlock(bx, bz);
-    if (!chunk) return false;
-    return chunk.blocks.has(blockKey(bx, by, bz));
+    const key = blockKey(bx, by, bz);
+
+    if (this._getChunkAtBlock(bx, bz)?.blocks.has(key)) {
+      return true;
+    }
+
+    return isInfiniteStone(bx, by, bz, this.modifications);
   }
 
   getPickables() {
@@ -234,12 +247,25 @@ export class ChunkManager {
   removeBlock(x, y, z) {
     const key = blockKey(x, y, z);
     const chunk = this._getChunkAtBlock(x, z);
-    if (!chunk || !chunk.blocks.has(key)) return null;
+    if (!chunk) return null;
 
-    const block = chunk.blocks.get(key);
-    const type = block.type;
-    chunk.blocks.delete(key);
+    const inMap = chunk.blocks.has(key);
+    const procedural = isInfiniteStone(x, y, z, this.modifications);
+
+    if (!inMap && !procedural) return null;
+
+    let type = 'stone';
+    if (inMap) {
+      type = chunk.blocks.get(key).type;
+      chunk.blocks.delete(key);
+    }
+
     this.modifications.set(key, null);
+
+    if (y < 0 && isInfiniteStone(x, y - 1, z, this.modifications)) {
+      this._extendStoneDown(chunk, x, z, y - 1);
+    }
+
     this._rebuildChunkMeshes(chunk);
     return type;
   }
@@ -247,7 +273,14 @@ export class ChunkManager {
   placeBlock(x, y, z, typeId) {
     const key = blockKey(x, y, z);
     const chunk = this._getChunkAtBlock(x, z);
-    if (!chunk || chunk.blocks.has(key)) return false;
+    if (!chunk) return false;
+
+    if (
+      chunk.blocks.has(key) ||
+      isInfiniteStone(x, y, z, this.modifications)
+    ) {
+      return false;
+    }
 
     chunk.blocks.set(key, { x, y, z, type: typeId });
     this.modifications.set(key, typeId);

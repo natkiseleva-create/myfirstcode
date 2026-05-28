@@ -1,15 +1,9 @@
 import { randomAt } from './noise.js';
+import { stoneLayersForColumn } from './terrainRules.js';
 
 /**
  * Recursive backtracker maze.
  * @param {number} cells - odd number of cells (e.g. 15)
- * @returns {{
- *   width: number,
- *   height: number,
- *   grid: number[][],
- *   spawn: { x: number, z: number },
- *   exit: { x: number, z: number },
- * }}
  */
 export function generateMazeGrid(cells = 15) {
   const w = cells * 2 + 1;
@@ -63,8 +57,6 @@ export function generateMazeGrid(cells = 15) {
 /**
  * @returns {{ x: number, y: number, z: number, type: string }[]}
  */
-const STONE_DEPTH = 4;
-
 export function mazeGridToBlocks(maze) {
   const blocks = [];
   const { grid, width, height, exit } = maze;
@@ -77,8 +69,8 @@ export function mazeGridToBlocks(maze) {
           blocks.push({ x, y, z, type: 'stone' });
         }
       } else {
-        for (let y = -STONE_DEPTH; y < 0; y++) {
-          blocks.push({ x, y, z, type: 'stone' });
+        for (const stone of stoneLayersForColumn(x, z)) {
+          blocks.push(stone);
         }
         blocks.push({ x, y: 0, z, type: 'grass' });
         if (x === exit.x && z === exit.z) {
