@@ -48,7 +48,7 @@ export function buildChunkMeshes(blocks) {
     if (!material || list.length === 0) continue;
 
     const mesh = new THREE.InstancedMesh(BOX, material, list.length);
-    mesh.frustumCulled = true;
+    mesh.frustumCulled = false;
 
     for (let i = 0; i < list.length; i++) {
       setInstanceMatrix(mesh, i, list[i]);
