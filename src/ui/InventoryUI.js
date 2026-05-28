@@ -18,6 +18,8 @@ export class InventoryUI {
     this.panelHotbarEl = document.getElementById('inventory-hotbar');
     this.craftPlanksBtn = document.getElementById('craft-planks');
     this.closeBtn = document.getElementById('btn-close-inventory');
+    this.closeBottomBtn = document.getElementById('btn-close-inventory-bottom');
+    this.crosshairEl = document.getElementById('crosshair');
 
     inventory.onChange(() => this.render());
 
@@ -26,21 +28,42 @@ export class InventoryUI {
       this.inventory.craft('wood_to_planks', this.inventory.selectedSlot);
     });
 
-    this.closeBtn?.addEventListener('click', (e) => {
+    const closeHandler = (e) => {
+      e.preventDefault();
       e.stopPropagation();
       this.close();
+    };
+
+    this.closeBtn?.addEventListener('click', closeHandler);
+    this.closeBottomBtn?.addEventListener('click', closeHandler);
+
+    this.backdropEl?.addEventListener('mousedown', (e) => {
+      if (e.target === this.backdropEl) {
+        this.close();
+      }
     });
 
-    this.backdropEl?.addEventListener('click', () => this.close());
-    this.panelEl?.addEventListener('click', (e) => e.stopPropagation());
+    this.panelEl?.addEventListener('mousedown', (e) => e.stopPropagation());
 
     this.render();
   }
 
   setOpen(open) {
     this.isOpen = open;
-    this.hotbarEl?.classList.toggle('hidden', open);
-    this.backdropEl?.classList.toggle('hidden', !open);
+
+    if (this.hotbarEl) {
+      this.hotbarEl.classList.toggle('hidden', open);
+    }
+
+    if (this.backdropEl) {
+      this.backdropEl.classList.toggle('hidden', !open);
+      this.backdropEl.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+
+    if (this.crosshairEl) {
+      this.crosshairEl.style.display = open ? 'none' : '';
+    }
+
     this.render();
   }
 
@@ -126,14 +149,14 @@ export class InventoryUI {
         el.appendChild(preview);
 
         if (slot.count > 1) {
-          const count = document.createElement('span');
-          count.className = 'slot-count';
-          count.textContent = String(slot.count);
-          el.appendChild(count);
+          const countEl = document.createElement('span');
+          countEl.className = 'slot-count';
+          countEl.textContent = String(slot.count);
+          el.appendChild(countEl);
         }
       }
 
-      el.addEventListener('click', (e) => {
+      el.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         if (index < this.inventory.hotbarSize) {
           this.inventory.selectSlot(index);

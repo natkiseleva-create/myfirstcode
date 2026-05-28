@@ -7,6 +7,55 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <canvas id="game"></canvas>
+
+    <div id="crosshair" aria-hidden="true"></div>
+    <div id="hotbar" class="hotbar hidden"></div>
+
+    <div id="overlay" class="hidden">
+      <h2 id="mode-hint">Кликните, чтобы начать</h2>
+      <p>Нажмите на экран для захвата мыши</p>
+      <ul>
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — движение</li>
+        <li><kbd>Пробел</kbd> — прыжок</li>
+        <li><kbd>Shift</kbd> — бег</li>
+        <li>Мышь — обзор</li>
+        <li><kbd>ЛКМ</kbd> — сломать · <kbd>ПКМ</kbd> — поставить</li>
+        <li><kbd>1</kbd>–<kbd>9</kbd> — хотбар · <kbd>E</kbd> / <kbd>У</kbd> — инвентарь</li>
+        <li><kbd>Esc</kbd> — закрыть инвентарь / меню</li>
+      </ul>
+    </div>
+
+    <div id="inventory-backdrop" class="inventory-backdrop hidden" aria-hidden="true">
+      <div id="inventory-panel" class="inventory-panel" role="dialog" aria-label="Инвентарь">
+        <button type="button" id="btn-close-inventory" class="btn-close-inv" aria-label="Закрыть">×</button>
+        <h2>Инвентарь <span class="inv-hint">E / У / Esc</span></h2>
+        <div class="craft-panel">
+          <h3>Крафт</h3>
+          <button type="button" id="craft-planks" class="craft-btn">
+            <span class="craft-btn-label">1 дерево → 4 доски</span>
+          </button>
+        </div>
+        <div id="inventory-storage" class="inventory-grid"></div>
+        <div id="inventory-hotbar" class="hotbar hotbar-panel"></div>
+        <button type="button" id="btn-close-inventory-bottom" class="btn-secondary">
+          Закрыть (E / У / Esc)
+        </button>
+        <button type="button" id="btn-back-menu" class="btn-secondary btn-secondary-muted">
+          Меню режимов
+        </button>
+      </div>
+    </div>
+
+    <div id="win-message" class="hidden">
+      <h2>Лабиринт пройден!</h2>
+      <p>Вы нашли выход.</p>
+      <div class="win-actions">
+        <button type="button" data-action="retry">Играть снова</button>
+        <button type="button" data-action="menu">Меню режимов</button>
+      </div>
+    </div>
+
     <div id="mode-menu">
       <h1>Voxel Craft</h1>
       <p class="mode-subtitle">Выберите режим игры</p>
@@ -22,47 +71,6 @@
       </div>
     </div>
 
-    <div id="overlay" class="hidden">
-      <h2 id="mode-hint">Кликните, чтобы начать</h2>
-      <p>Нажмите на экран для захвата мыши</p>
-      <ul>
-        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — движение</li>
-        <li><kbd>Пробел</kbd> — прыжок</li>
-        <li><kbd>Shift</kbd> — бег</li>
-        <li>Мышь — обзор</li>
-        <li><kbd>ЛКМ</kbd> — сломать · <kbd>ПКМ</kbd> — поставить</li>
-        <li><kbd>1</kbd>–<kbd>9</kbd> — хотбар · <kbd>E</kbd> — инвентарь</li>
-        <li><kbd>Esc</kbd> — меню режимов</li>
-      </ul>
-    </div>
-
-    <div id="win-message" class="hidden">
-      <h2>Лабиринт пройден!</h2>
-      <p>Вы нашли выход.</p>
-      <div class="win-actions">
-        <button type="button" data-action="retry">Играть снова</button>
-        <button type="button" data-action="menu">Меню режимов</button>
-      </div>
-    </div>
-
-    <div id="crosshair" aria-hidden="true"></div>
-    <div id="hotbar" class="hotbar hidden"></div>
-    <div id="inventory-backdrop" class="inventory-backdrop hidden">
-    <div id="inventory-panel" class="inventory-panel">
-      <button type="button" id="btn-close-inventory" class="btn-close-inv" aria-label="Закрыть">×</button>
-      <h2>Инвентарь <span class="inv-hint">E или Esc</span></h2>
-      <div class="craft-panel">
-        <h3>Крафт</h3>
-        <button type="button" id="craft-planks" class="craft-btn">
-          <span class="craft-btn-label">1 дерево → 4 доски</span>
-        </button>
-      </div>
-      <div id="inventory-storage" class="inventory-grid"></div>
-      <div id="inventory-hotbar" class="hotbar hotbar-panel"></div>
-      <button type="button" id="btn-back-menu" class="btn-secondary">Меню режимов</button>
-    </div>
-    </div>
-    <canvas id="game"></canvas>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -40,6 +40,12 @@ let inventoryUI = null;
 let currentMode = null;
 let lastTime = performance.now();
 
+/** E on QWERTY or У on Russian layout. */
+function isInventoryKey(event) {
+  const key = event.key.toLowerCase();
+  return key === 'e' || key === 'у';
+}
+
 function blocksPlayerPlacement(x, y, z) {
   const feetY = camera.position.y - PLAYER_HEIGHT;
   const headY = camera.position.y;
@@ -54,14 +60,13 @@ function blocksPlayerPlacement(x, y, z) {
 
   if (!overlaps) return false;
 
-  // Pillar jump: allow a block whose top is below the feet.
   if (y + 1 <= feetY + 0.2) return false;
 
   return true;
 }
 
 function tryBreakBlock() {
-  if (!controller?.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI?.isOpen) return;
 
   const target = pickBlock(camera, world.getPickables(), REACH);
   if (!target) return;
@@ -73,7 +78,7 @@ function tryBreakBlock() {
 }
 
 function tryPlaceBlock() {
-  if (!controller?.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI?.isOpen) return;
   if (!inventory.hasSelected()) return;
 
   const hit = pickBlockFace(camera, world.getPickables(), REACH);
@@ -113,6 +118,8 @@ function toggleInventory() {
 
 function showModeMenu() {
   document.exitPointerLock();
+  closeInventory();
+
   if (world) {
     world.dispose();
     world = null;
@@ -126,14 +133,14 @@ function showModeMenu() {
   modeMenu.classList.remove('hidden');
   overlay.classList.add('hidden');
   winMessage.classList.add('hidden');
-  document.getElementById('hotbar').classList.add('hidden');
+  document.getElementById('hotbar')?.classList.add('hidden');
   document.getElementById('inventory-backdrop')?.classList.add('hidden');
 }
 
 function startMode(mode) {
   currentMode = mode;
   modeMenu.classList.add('hidden');
-  document.getElementById('hotbar').classList.remove('hidden');
+  document.getElementById('hotbar')?.classList.remove('hidden');
 
   world = createWorld(mode);
   inventory = new Inventory();
@@ -190,7 +197,7 @@ function animate(now) {
   world.updateWorld(camera.position.x, camera.position.z);
   world.updateMobs(dt);
 
-  if (controller.isLocked && !inventoryUI.isOpen) {
+  if (controller.isLocked && !inventoryUI?.isOpen) {
     controller.update(dt);
     checkMazeWin();
   }
@@ -206,6 +213,35 @@ function onResize() {
   renderer.setSize(w, h);
 }
 
+function onGlobalKeyDown(event) {
+  if (!currentMode || !world) return;
+
+  if (event.code === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    if (inventoryUI?.isOpen) {
+      closeInventory();
+      return;
+    }
+    showModeMenu();
+    return;
+  }
+
+  if (isInventoryKey(event)) {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleInventory();
+    return;
+  }
+
+  if (!inventoryUI || inventoryUI.isOpen) return;
+
+  const digit = event.code.match(/^Digit([1-9])$/);
+  if (digit && controller?.isLocked) {
+    inventory.selectSlot(Number(digit[1]) - 1);
+  }
+}
+
 modeMenu.querySelectorAll('[data-mode]').forEach((btn) => {
   btn.addEventListener('click', () => {
     startMode(btn.dataset.mode);
@@ -213,7 +249,7 @@ modeMenu.querySelectorAll('[data-mode]').forEach((btn) => {
 });
 
 overlay.addEventListener('click', () => {
-  if (!controller || inventoryUI.isOpen) return;
+  if (!controller || inventoryUI?.isOpen) return;
   controller.requestPointerLock();
   overlay.classList.add('hidden');
 });
@@ -226,43 +262,20 @@ winMessage.querySelector('[data-action="retry"]')?.addEventListener('click', () 
 });
 
 canvas.addEventListener('mousedown', (event) => {
-  if (!controller?.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI?.isOpen) return;
   if (event.button === 0) tryBreakBlock();
   else if (event.button === 2) tryPlaceBlock();
 });
 
 canvas.addEventListener('wheel', (event) => {
-  if (!controller?.isLocked || inventoryUI.isOpen) return;
+  if (!controller?.isLocked || inventoryUI?.isOpen) return;
   event.preventDefault();
   inventory.cycleSelection(event.deltaY > 0 ? 1 : -1);
 });
 
 canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
-document.addEventListener('keydown', (event) => {
-  if (event.code === 'Escape' && currentMode) {
-    if (inventoryUI?.isOpen) {
-      event.preventDefault();
-      closeInventory();
-      return;
-    }
-    showModeMenu();
-    return;
-  }
-
-  if (event.code === 'KeyE' && world) {
-    event.preventDefault();
-    toggleInventory();
-    return;
-  }
-
-  if (!inventoryUI || inventoryUI.isOpen) return;
-
-  const digit = event.code.match(/^Digit([1-9])$/);
-  if (digit && controller?.isLocked) {
-    inventory.selectSlot(Number(digit[1]) - 1);
-  }
-});
+window.addEventListener('keydown', onGlobalKeyDown, true);
 
 document.addEventListener('pointerlockchange', () => {
   if (!world || inventoryUI?.isOpen) return;
