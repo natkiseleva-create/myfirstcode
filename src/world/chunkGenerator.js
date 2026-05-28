@@ -5,7 +5,7 @@ import { fillTerrainColumn } from './terrainRules.js';
 
 export const CHUNK_SIZE = 16;
 const TREE_MARGIN = 3;
-const TREE_SPAWN_THRESHOLD = 0.006;
+const TREE_SPAWN_THRESHOLD = 0.82;
 
 /**
  * Procedural blocks for one chunk (world coordinates).
@@ -55,8 +55,8 @@ export function generateChunkBlocks(cx, cz) {
       if (randomAt(wx * 3 + 17, wz * 7 + 31) > TREE_SPAWN_THRESHOLD) continue;
       if (hasTreeNearby(blocks, wx, wz)) continue;
 
-      const top = getColumnTop(wx, wz);
-      if (top < 6) continue;
+      const surfaceY = getTerrainHeight(wx, wz);
+      if (surfaceY < 5) continue;
 
       placeTree(wx, wz, (x, y, z, type) => {
         add(x, y, z, type);

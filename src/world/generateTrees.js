@@ -3,7 +3,7 @@ import { randomAt } from './noise.js';
 const CROWN_RADIUS = 2;
 
 /** Minimum spacing between tree trunks (one tree per cell). */
-export const TREE_CELL = 9;
+export const TREE_CELL = 7;
 
 /** Deterministic trunk column — same in every chunk, no overlaps. */
 export function isTreeSpawnColumn(wx, wz) {
