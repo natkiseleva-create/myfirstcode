@@ -63,6 +63,8 @@ export function generateMazeGrid(cells = 15) {
 /**
  * @returns {{ x: number, y: number, z: number, type: string }[]}
  */
+const STONE_DEPTH = 4;
+
 export function mazeGridToBlocks(maze) {
   const blocks = [];
   const { grid, width, height, exit } = maze;
@@ -75,6 +77,9 @@ export function mazeGridToBlocks(maze) {
           blocks.push({ x, y, z, type: 'stone' });
         }
       } else {
+        for (let y = -STONE_DEPTH; y < 0; y++) {
+          blocks.push({ x, y, z, type: 'stone' });
+        }
         blocks.push({ x, y: 0, z, type: 'grass' });
         if (x === exit.x && z === exit.z) {
           blocks.push({ x, y: 1, z, type: 'gold' });

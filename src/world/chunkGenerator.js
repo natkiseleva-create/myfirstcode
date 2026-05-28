@@ -2,6 +2,7 @@ import { randomAt } from './noise.js';
 import { placeTree } from './generateTrees.js';
 
 export const CHUNK_SIZE = 16;
+const STONE_DEPTH = 4;
 
 /**
  * Procedural blocks for one chunk (world coordinates).
@@ -34,6 +35,10 @@ export function generateChunkBlocks(cx, cz) {
     for (let lz = 0; lz < CHUNK_SIZE; lz++) {
       const wx = baseX + lx;
       const wz = baseZ + lz;
+
+      for (let y = -STONE_DEPTH; y < 0; y++) {
+        add(wx, y, wz, 'stone');
+      }
 
       add(wx, 0, wz, 'grass');
 
