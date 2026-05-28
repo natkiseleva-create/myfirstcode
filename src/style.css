@@ -427,3 +427,109 @@ kbd {
   margin-top: 10px;
   width: 100%;
 }
+
+.inventory-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.craft-sidebar {
+  flex-shrink: 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.craft-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.craft-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.craft-tab {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(60, 60, 70, 0.8);
+  color: #eee;
+  cursor: pointer;
+}
+
+.craft-tab.active {
+  border-color: #8bc34a;
+  background: rgba(80, 100, 60, 0.7);
+}
+
+.craft-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.craft-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, 48px);
+  grid-template-rows: repeat(2, 48px);
+}
+
+.craft-grid[data-size="3"] {
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(3, 48px);
+}
+
+.craft-arrow {
+  font-size: 1.5rem;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.craft-output-slot {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.craft-output-slot.has-result {
+  border-color: #8bc34a;
+  box-shadow: 0 0 8px rgba(139, 195, 74, 0.4);
+}
+
+.craft-output-slot:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.craft-help,
+.craft-recipes-hint {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  opacity: 0.75;
+  margin-top: 10px;
+}
+
+.craft-recipes-hint {
+  opacity: 0.55;
+}
+
+.inventory-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.inventory-panel {
+  max-width: min(96vw, 720px);
+  max-height: 90vh;
+  overflow-y: auto;
+}

@@ -30,16 +30,36 @@
       <div id="inventory-panel" class="inventory-panel" role="dialog" aria-label="Инвентарь">
         <button type="button" id="btn-close-inventory" class="btn-close-inv" aria-label="Закрыть">×</button>
         <h2>Инвентарь <span class="inv-hint">E / У / Esc</span></h2>
-        <div class="craft-panel">
-          <h3>Крафт</h3>
-          <button type="button" id="craft-planks" class="craft-btn">
-            <span class="craft-btn-label">1 дерево → 4 доски</span>
-          </button>
+
+        <div class="inventory-layout">
+          <aside class="craft-sidebar">
+            <h3 class="craft-title">Создание</h3>
+            <div class="craft-tabs">
+              <button type="button" id="craft-tab-2" class="craft-tab active">Сетка 2×2</button>
+              <button type="button" id="craft-tab-3" class="craft-tab">Верстак 3×3</button>
+            </div>
+            <div class="craft-row">
+              <div id="craft-grid" class="craft-grid" data-size="2"></div>
+              <div class="craft-arrow" aria-hidden="true">→</div>
+              <button type="button" id="craft-output" class="inv-slot craft-output-slot" disabled></button>
+            </div>
+            <p class="craft-help">
+              ЛКМ по ячейке — взять с выбранного слота хотбара<br />
+              ПКМ — вернуть в инвентарь · Нажмите результат — скрафтить
+            </p>
+            <p class="craft-recipes-hint">
+              Дерево → доски · 4 доски → верстак
+            </p>
+          </aside>
+
+          <div class="inventory-body">
+            <div id="inventory-storage" class="inventory-grid"></div>
+            <div id="inventory-hotbar" class="hotbar hotbar-panel"></div>
+          </div>
         </div>
-        <div id="inventory-storage" class="inventory-grid"></div>
-        <div id="inventory-hotbar" class="hotbar hotbar-panel"></div>
+
         <button type="button" id="btn-close-inventory-bottom" class="btn-secondary">
-          Закрыть (E / У / Esc)
+          Закрыть и продолжить игру
         </button>
         <button type="button" id="btn-back-menu" class="btn-secondary btn-secondary-muted">
           Меню режимов

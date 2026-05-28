@@ -1,5 +1,5 @@
 import { getBlockType } from '../blocks/blockTypes.js';
-import { CRAFT_RECIPES } from '../inventory/crafting.js';
+import { CraftingController } from '../inventory/CraftingController.js';
 
 export class InventoryUI {
   /**
@@ -10,23 +10,23 @@ export class InventoryUI {
     this.inventory = inventory;
     this.onClose = options.onClose ?? (() => {});
     this.isOpen = false;
+    this.crafting = new CraftingController(inventory);
 
     this.hotbarEl = document.getElementById('hotbar');
     this.backdropEl = document.getElementById('inventory-backdrop');
     this.panelEl = document.getElementById('inventory-panel');
     this.storageEl = document.getElementById('inventory-storage');
     this.panelHotbarEl = document.getElementById('inventory-hotbar');
-    this.craftPlanksBtn = document.getElementById('craft-planks');
+    this.craftGridEl = document.getElementById('craft-grid');
+    this.craftOutputEl = document.getElementById('craft-output');
+    this.craftTab2 = document.getElementById('craft-tab-2');
+    this.craftTab3 = document.getElementById('craft-tab-3');
     this.closeBtn = document.getElementById('btn-close-inventory');
     this.closeBottomBtn = document.getElementById('btn-close-inventory-bottom');
     this.crosshairEl = document.getElementById('crosshair');
 
     inventory.onChange(() => this.render());
-
-    this.craftPlanksBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.inventory.craft('wood_to_planks', this.inventory.selectedSlot);
-    });
+    this.crafting.onChange(() => this.render());
 
     const closeHandler = (e) => {
       e.preventDefault();
@@ -38,12 +38,27 @@ export class InventoryUI {
     this.closeBottomBtn?.addEventListener('click', closeHandler);
 
     this.backdropEl?.addEventListener('mousedown', (e) => {
-      if (e.target === this.backdropEl) {
-        this.close();
-      }
+      if (e.target === this.backdropEl) this.close();
     });
 
     this.panelEl?.addEventListener('mousedown', (e) => e.stopPropagation());
+
+    this.craftTab2?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.crafting.setGridSize(2);
+      this._updateCraftTabs();
+    });
+
+    this.craftTab3?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.crafting.setGridSize(3);
+      this._updateCraftTabs();
+    });
+
+    this.craftOutputEl?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.crafting.craftOutput();
+    });
 
     this.render();
   }
@@ -51,9 +66,7 @@ export class InventoryUI {
   setOpen(open) {
     this.isOpen = open;
 
-    if (this.hotbarEl) {
-      this.hotbarEl.classList.toggle('hidden', open);
-    }
+    this.hotbarEl?.classList.toggle('hidden', open);
 
     if (this.backdropEl) {
       this.backdropEl.classList.toggle('hidden', !open);
@@ -62,6 +75,10 @@ export class InventoryUI {
 
     if (this.crosshairEl) {
       this.crosshairEl.style.display = open ? 'none' : '';
+    }
+
+    if (!open) {
+      this.crafting.clearGrid();
     }
 
     this.render();
@@ -86,20 +103,85 @@ export class InventoryUI {
     return true;
   }
 
-  _updateCraftButtons() {
-    const recipe = CRAFT_RECIPES.wood_to_planks;
-    if (!this.craftPlanksBtn || !recipe) return;
+  _updateCraftTabs() {
+    const size = this.crafting.gridSize;
+    this.craftTab2?.classList.toggle('active', size === 2);
+    this.craftTab3?.classList.toggle('active', size === 3);
+    if (this.craftGridEl) {
+      this.craftGridEl.dataset.size = String(size);
+    }
+  }
 
-    const woodCount = this.inventory.countItem(recipe.input.type);
-    const canCraft = woodCount >= recipe.input.count;
+  _renderCraftGrid() {
+    if (!this.craftGridEl) return;
+    this.craftGridEl.innerHTML = '';
+    this._updateCraftTabs();
 
-    this.craftPlanksBtn.disabled = !canCraft;
-    this.craftPlanksBtn.title = canCraft
-      ? `${recipe.input.count} дерево → ${recipe.output.count} доски`
-      : 'Нужно дерево (брёвна)';
+    const count = this.crafting.getSlotCount();
+    for (let i = 0; i < count; i++) {
+      const slot = this.crafting.getSlot(i);
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'inv-slot craft-slot';
+      el.dataset.craftIndex = String(i);
+
+      if (slot?.type) {
+        this._fillSlotPreview(el, slot.type, slot.count);
+      }
+
+      el.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (e.button === 2) {
+          this.crafting.withdrawToInventory(i);
+        } else {
+          this.crafting.depositFromSelected(i);
+        }
+      });
+
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      this.craftGridEl.appendChild(el);
+    }
+
+    this._renderOutputSlot();
+  }
+
+  _renderOutputSlot() {
+    if (!this.craftOutputEl) return;
+    this.craftOutputEl.innerHTML = '';
+    const preview = this.crafting.getOutputPreview();
+
+    if (preview?.type) {
+      this._fillSlotPreview(this.craftOutputEl, preview.type, preview.count);
+      this.craftOutputEl.classList.add('has-result');
+      this.craftOutputEl.disabled = false;
+    } else {
+      this.craftOutputEl.classList.remove('has-result');
+      this.craftOutputEl.disabled = true;
+    }
+  }
+
+  _fillSlotPreview(el, typeId, count) {
+    const blockType = getBlockType(typeId);
+    const preview = document.createElement('span');
+    preview.className = 'block-preview';
+    if (blockType) {
+      preview.style.setProperty('--top', colorToCss(blockType.topColor));
+      preview.style.setProperty('--side', colorToCss(blockType.sideColor));
+    }
+    el.appendChild(preview);
+
+    if (count > 1) {
+      const countEl = document.createElement('span');
+      countEl.className = 'slot-count';
+      countEl.textContent = String(count);
+      el.appendChild(countEl);
+    }
   }
 
   render() {
+    this._renderCraftGrid();
     this._renderBar(this.hotbarEl, 0, this.inventory.hotbarSize, true);
     if (this.storageEl) {
       this._renderBar(
@@ -112,7 +194,6 @@ export class InventoryUI {
     if (this.panelHotbarEl) {
       this._renderBar(this.panelHotbarEl, 0, this.inventory.hotbarSize, true);
     }
-    this._updateCraftButtons();
   }
 
   _renderBar(container, startIndex, count, isHotbar) {
@@ -139,21 +220,7 @@ export class InventoryUI {
       }
 
       if (slot.type) {
-        const blockType = getBlockType(slot.type);
-        const preview = document.createElement('span');
-        preview.className = 'block-preview';
-        if (blockType) {
-          preview.style.setProperty('--top', colorToCss(blockType.topColor));
-          preview.style.setProperty('--side', colorToCss(blockType.sideColor));
-        }
-        el.appendChild(preview);
-
-        if (slot.count > 1) {
-          const countEl = document.createElement('span');
-          countEl.className = 'slot-count';
-          countEl.textContent = String(slot.count);
-          el.appendChild(countEl);
-        }
+        this._fillSlotPreview(el, slot.type, slot.count);
       }
 
       el.addEventListener('mousedown', (e) => {

@@ -39,6 +39,7 @@ let inventory = null;
 let inventoryUI = null;
 let currentMode = null;
 let lastTime = performance.now();
+let hasPlayedOnce = false;
 
 /** E on QWERTY or У on Russian layout. */
 function isInventoryKey(event) {
@@ -105,9 +106,16 @@ function openInventory() {
   inventoryUI.open();
 }
 
+function resumeGameplay() {
+  overlay.classList.add('hidden');
+  if (!controller) return;
+  controller.requestPointerLock();
+}
+
 function closeInventory() {
   if (!inventoryUI || !inventoryUI.isOpen) return;
   inventoryUI.close();
+  resumeGameplay();
 }
 
 function toggleInventory() {
@@ -145,11 +153,7 @@ function startMode(mode) {
   world = createWorld(mode);
   inventory = new Inventory();
   inventoryUI = new InventoryUI(inventory, {
-    onClose: () => {
-      if (document.pointerLockElement !== canvas) {
-        overlay.classList.remove('hidden');
-      }
-    },
+    onClose: () => resumeGameplay(),
   });
 
   controller = new FirstPersonController(camera, canvas, {
@@ -252,6 +256,7 @@ overlay.addEventListener('click', () => {
   if (!controller || inventoryUI?.isOpen) return;
   controller.requestPointerLock();
   overlay.classList.add('hidden');
+  hasPlayedOnce = true;
 });
 
 document.getElementById('btn-back-menu')?.addEventListener('click', showModeMenu);
@@ -282,7 +287,12 @@ document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement !== canvas && !winMessage.classList.contains('hidden')) {
     return;
   }
-  if (document.pointerLockElement !== canvas) {
+  if (document.pointerLockElement === canvas) {
+    overlay.classList.add('hidden');
+    hasPlayedOnce = true;
+    return;
+  }
+  if (!hasPlayedOnce) {
     overlay.classList.remove('hidden');
   }
 });

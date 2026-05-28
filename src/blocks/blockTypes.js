@@ -34,6 +34,13 @@ export const BLOCK_TYPES = {
     sideColor: 0xa08050,
     stackSize: 64,
   },
+  crafting_table: {
+    id: 'crafting_table',
+    label: 'Верстак',
+    topColor: 0xb8885a,
+    sideColor: 0x8b5a2b,
+    stackSize: 64,
+  },
   leaves: {
     id: 'leaves',
     label: 'Листва',
