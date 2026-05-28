@@ -3,8 +3,9 @@ import { randomAt } from '../world/noise.js';
 import { canPlaceTree } from '../world/terrainGenerator.js';
 import { CHUNK_SIZE } from '../world/chunkGenerator.js';
 
-const MOBS_PER_CHUNK = 2;
-const MAX_MOBS = 48;
+const MOBS_PER_CHUNK = 1;
+const MAX_MOBS = 14;
+const MOB_SPAWN_CHANCE = 0.22;
 
 export class MobManager {
   /**
@@ -41,7 +42,7 @@ export class MobManager {
       const wz = baseZ + lz;
 
       if (!canPlaceTree(wx, wz)) continue;
-      if (randomAt(wx, wz, 66) > 0.55) continue;
+      if (randomAt(wx, wz, 66) > MOB_SPAWN_CHANCE) continue;
 
       const kind = randomMobKind(wx, wz);
       const mob = new Mob(kind, wx + 0.5, wz + 0.5, this.world);
