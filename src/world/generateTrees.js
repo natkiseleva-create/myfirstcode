@@ -60,18 +60,20 @@ export function placeTree(x, z, addBlock, getColumnTop) {
  * @param {{ x: number, y: number, z: number, type: string }[]} blocks
  */
 export function pruneOrphanWood(blocks) {
-  const byKey = new Map();
+  const leafTopByColumn = new Map();
+
   for (const block of blocks) {
-    byKey.set(`${block.x},${block.y},${block.z}`, block);
+    if (block.type !== 'leaves') continue;
+    const key = `${block.x},${block.z}`;
+    const prev = leafTopByColumn.get(key) ?? -Infinity;
+    if (block.y > prev) leafTopByColumn.set(key, block.y);
   }
 
-  const hasLeafNear = (x, y, z) => {
-    for (let dy = 0; dy <= 6; dy++) {
-      for (let dx = -3; dx <= 3; dx++) {
-        for (let dz = -3; dz <= 3; dz++) {
-          const neighbor = byKey.get(`${x + dx},${y + dy},${z + dz}`);
-          if (neighbor?.type === 'leaves') return true;
-        }
+  const hasCrownNear = (x, y, z) => {
+    for (let dx = -CROWN_RADIUS; dx <= CROWN_RADIUS; dx++) {
+      for (let dz = -CROWN_RADIUS; dz <= CROWN_RADIUS; dz++) {
+        const top = leafTopByColumn.get(`${x + dx},${z + dz}`);
+        if (top !== undefined && top >= y) return true;
       }
     }
     return false;
@@ -79,7 +81,7 @@ export function pruneOrphanWood(blocks) {
 
   return blocks.filter((block) => {
     if (block.type !== 'wood') return true;
-    return hasLeafNear(block.x, block.y, block.z);
+    return hasCrownNear(block.x, block.y, block.z);
   });
 }
 

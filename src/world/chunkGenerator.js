@@ -3,7 +3,7 @@ import { placeTree, pruneOrphanWood } from './generateTrees.js';
 import { stoneLayersForColumn } from './terrainRules.js';
 
 export const CHUNK_SIZE = 16;
-const TREE_MARGIN = 2;
+const TREE_MARGIN = 3;
 const TREE_SPAWN_THRESHOLD = 0.006;
 
 /**
