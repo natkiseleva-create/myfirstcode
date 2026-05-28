@@ -7,7 +7,7 @@ import { ChunkManager } from './ChunkManager.js';
  *   updateWorld: (playerX: number, playerZ: number) => void,
  *   collides: (pos: THREE.Vector3) => boolean,
  *   getSupportHeight: (x: number, z: number, feetY: number, radius?: number) => number,
- *   getBlockMeshes: () => THREE.Mesh[],
+ *   getPickables: () => THREE.Mesh[],
  *   removeBlock: (x: number, y: number, z: number) => string | null,
  *   placeBlock: (x: number, y: number, z: number, typeId: string) => boolean,
  * }}
@@ -33,7 +33,7 @@ export function createWorld() {
     collides: (pos) => chunks.collides(pos),
     getSupportHeight: (x, z, feetY, radius) =>
       chunks.getSupportHeight(x, z, feetY, radius),
-    getBlockMeshes: () => chunks.getBlockMeshes(),
+    getPickables: () => chunks.getPickables(),
     removeBlock: (x, y, z) => chunks.removeBlock(x, y, z),
     placeBlock: (x, y, z, typeId) => chunks.placeBlock(x, y, z, typeId),
   };

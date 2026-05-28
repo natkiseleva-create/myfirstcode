@@ -31,7 +31,7 @@ const {
   ensureWorldLoaded,
   collides,
   getSupportHeight,
-  getBlockMeshes,
+  getPickables,
   removeBlock,
   placeBlock,
 } = createWorld();
@@ -60,27 +60,20 @@ function playerOccupiesBlock(x, y, z) {
   const minZ = camera.position.z - PLAYER_RADIUS;
   const maxZ = camera.position.z + PLAYER_RADIUS;
 
-  const blockMinX = x;
-  const blockMaxX = x + 1;
-  const blockMinY = y;
-  const blockMaxY = y + 1;
-  const blockMinZ = z;
-  const blockMaxZ = z + 1;
-
   return (
-    maxX > blockMinX &&
-    minX < blockMaxX &&
-    maxY > blockMinY &&
-    minY < blockMaxY &&
-    maxZ > blockMinZ &&
-    minZ < blockMaxZ
+    maxX > x &&
+    minX < x + 1 &&
+    maxY > y &&
+    minY < y + 1 &&
+    maxZ > z &&
+    minZ < z + 1
   );
 }
 
 function tryBreakBlock() {
   if (!controller.isLocked || inventoryUI.isOpen) return;
 
-  const target = pickBlock(camera, getBlockMeshes(), REACH);
+  const target = pickBlock(camera, getPickables(), REACH);
   if (!target) return;
 
   const type = removeBlock(target.x, target.y, target.z);
@@ -93,7 +86,7 @@ function tryPlaceBlock() {
   if (!controller.isLocked || inventoryUI.isOpen) return;
   if (!inventory.hasSelected()) return;
 
-  const hit = pickBlockFace(camera, getBlockMeshes(), REACH);
+  const hit = pickBlockFace(camera, getPickables(), REACH);
   if (!hit) return;
 
   const { place } = hit;
