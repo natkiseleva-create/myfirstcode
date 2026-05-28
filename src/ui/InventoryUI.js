@@ -1,4 +1,5 @@
 import { getBlockType } from '../blocks/blockTypes.js';
+import { CRAFT_RECIPES } from '../inventory/crafting.js';
 
 export class InventoryUI {
   /**
@@ -12,14 +13,20 @@ export class InventoryUI {
     this.panelEl = document.getElementById('inventory-panel');
     this.storageEl = document.getElementById('inventory-storage');
     this.panelHotbarEl = document.getElementById('inventory-hotbar');
+    this.craftPlanksBtn = document.getElementById('craft-planks');
 
     inventory.onChange(() => this.render());
+
+    this.craftPlanksBtn?.addEventListener('click', () => {
+      this.inventory.craft('wood_to_planks', this.inventory.selectedSlot);
+    });
+
     this.render();
   }
 
   setOpen(open) {
     this.isOpen = open;
-    this.hotbarEl.classList.toggle("hidden", open);
+    this.hotbarEl.classList.toggle('hidden', open);
     this.panelEl.classList.toggle('hidden', !open);
     this.render();
   }
@@ -27,6 +34,19 @@ export class InventoryUI {
   toggle() {
     this.setOpen(!this.isOpen);
     return this.isOpen;
+  }
+
+  _updateCraftButtons() {
+    const recipe = CRAFT_RECIPES.wood_to_planks;
+    if (!this.craftPlanksBtn || !recipe) return;
+
+    const woodCount = this.inventory.countItem(recipe.input.type);
+    const canCraft = woodCount >= recipe.input.count;
+
+    this.craftPlanksBtn.disabled = !canCraft;
+    this.craftPlanksBtn.title = canCraft
+      ? `${recipe.input.count} дерево → ${recipe.output.count} доски`
+      : 'Нужно дерево (брёвна)';
   }
 
   render() {
@@ -42,9 +62,11 @@ export class InventoryUI {
     if (this.panelHotbarEl) {
       this._renderBar(this.panelHotbarEl, 0, this.inventory.hotbarSize, true);
     }
+    this._updateCraftButtons();
   }
 
   _renderBar(container, startIndex, count, isHotbar) {
+    if (!container) return;
     container.innerHTML = '';
 
     for (let i = 0; i < count; i++) {

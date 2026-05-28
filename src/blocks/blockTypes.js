@@ -27,6 +27,13 @@ export const BLOCK_TYPES = {
     sideColor: 0x5c3d1e,
     stackSize: 64,
   },
+  planks: {
+    id: 'planks',
+    label: 'Доски',
+    topColor: 0xc9a86c,
+    sideColor: 0xa08050,
+    stackSize: 64,
+  },
   leaves: {
     id: 'leaves',
     label: 'Листва',
