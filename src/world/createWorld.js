@@ -14,8 +14,16 @@ function createBlockMaterial(topColor, sideColor) {
   return materials;
 }
 
+const blockKey = (x, y, z) => `${x},${y},${z}`;
+
 /**
- * @returns {{ scene: THREE.Scene, collides: (pos: THREE.Vector3) => boolean, getGroundHeight: (x: number, z: number) => number }}
+ * @returns {{
+ *   scene: THREE.Scene,
+ *   collides: (pos: THREE.Vector3) => boolean,
+ *   getGroundHeight: (x: number, z: number) => number,
+ *   getBlockMeshes: () => THREE.Mesh[],
+ *   removeBlock: (x: number, y: number, z: number) => boolean,
+ * }}
  */
 export function createWorld() {
   const scene = new THREE.Scene();
@@ -30,7 +38,7 @@ export function createWorld() {
   scene.add(sun);
 
   const blockPositions = new Set();
-  const blockKey = (x, y, z) => `${x},${y},${z}`;
+  const blocks = new Map();
 
   const geometry = new THREE.BoxGeometry(BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
   const grassMat = createBlockMaterial(0x5a9e3a, 0x6b4423);
@@ -38,12 +46,29 @@ export function createWorld() {
   const dirtMat = createBlockMaterial(0x6b4423, 0x5a3820);
 
   function addBlock(x, y, z, materials) {
+    const key = blockKey(x, y, z);
+    if (blocks.has(key)) return;
+
     const mesh = new THREE.Mesh(geometry, materials);
     mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.userData.block = { x, y, z };
     scene.add(mesh);
-    blockPositions.add(blockKey(x, y, z));
+
+    blocks.set(key, mesh);
+    blockPositions.add(key);
+  }
+
+  function removeBlock(x, y, z) {
+    const key = blockKey(x, y, z);
+    const mesh = blocks.get(key);
+    if (!mesh) return false;
+
+    scene.remove(mesh);
+    blocks.delete(key);
+    blockPositions.delete(key);
+    return true;
   }
 
   const worldSize = 16;
@@ -89,5 +114,15 @@ export function createWorld() {
     return maxY >= 0 ? maxY + 1 : 0;
   }
 
-  return { scene, collides, getGroundHeight };
+  function getBlockMeshes() {
+    return [...blocks.values()];
+  }
+
+  return {
+    scene,
+    collides,
+    getGroundHeight,
+    getBlockMeshes,
+    removeBlock,
+  };
 }

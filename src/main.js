@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FirstPersonController } from './controls/FirstPersonController.js';
 import { createWorld } from './world/createWorld.js';
+import { pickBlock } from './world/pickBlock.js';
 
 const canvas = document.getElementById('game');
 const overlay = document.getElementById('overlay');
@@ -16,7 +17,8 @@ const camera = new THREE.PerspectiveCamera(
   200
 );
 
-const { scene, collides, getGroundHeight } = createWorld();
+const { scene, collides, getGroundHeight, getBlockMeshes, removeBlock } =
+  createWorld();
 
 const controller = new FirstPersonController(camera, canvas, {
   groundY: 0,
@@ -28,7 +30,17 @@ const spawnZ = 0;
 const spawnGround = getGroundHeight(spawnX, spawnZ);
 controller.setPosition(spawnX, spawnGround, spawnZ);
 
+const BREAK_REACH = 5;
 let lastTime = performance.now();
+
+function tryBreakBlock() {
+  if (!controller.isLocked) return;
+
+  const target = pickBlock(camera, getBlockMeshes(), BREAK_REACH);
+  if (!target) return;
+
+  removeBlock(target.x, target.y, target.z);
+}
 
 function animate(now) {
   requestAnimationFrame(animate);
@@ -57,6 +69,15 @@ function onResize() {
 overlay.addEventListener('click', () => {
   controller.requestPointerLock();
   overlay.classList.add('hidden');
+});
+
+canvas.addEventListener('mousedown', (event) => {
+  if (event.button !== 0) return;
+  tryBreakBlock();
+});
+
+canvas.addEventListener('contextmenu', (event) => {
+  event.preventDefault();
 });
 
 document.addEventListener('pointerlockchange', () => {
