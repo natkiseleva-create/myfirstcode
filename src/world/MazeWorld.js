@@ -96,11 +96,7 @@ export class MazeWorld {
 
     if (surfaceY === -Infinity) return 0;
 
-    if (feetY <= surfaceY + GROUND_EPSILON) {
-      return surfaceY;
-    }
-
-    return feetY;
+    return surfaceY;
   }
 
   collides(pos) {

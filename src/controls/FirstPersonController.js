@@ -34,6 +34,7 @@ export class FirstPersonController {
     this.pitch = 0;
     this.isLocked = false;
     this.onGround = false;
+    this.jumpRequested = false;
 
     this._sample = new THREE.Vector3();
 
@@ -42,7 +43,6 @@ export class FirstPersonController {
       backward: false,
       left: false,
       right: false,
-      jump: false,
       sprint: false,
     };
 
@@ -92,7 +92,7 @@ export class FirstPersonController {
         this.keys.right = true;
         break;
       case 'Space':
-        this.keys.jump = true;
+        if (!event.repeat) this.jumpRequested = true;
         event.preventDefault();
         break;
       case 'ShiftLeft':
@@ -119,7 +119,7 @@ export class FirstPersonController {
         this.keys.right = false;
         break;
       case 'Space':
-        this.keys.jump = false;
+        this.jumpRequested = false;
         break;
       case 'ShiftLeft':
       case 'ShiftRight':
@@ -239,16 +239,17 @@ export class FirstPersonController {
     const pz = this.camera.position.z;
     const feetY = this.getFeetY();
     const groundY = this.getSupportHeight(px, pz, feetY, PLAYER_RADIUS);
+    const aboveGround = feetY - groundY;
 
     if (this.velocity.y <= 0) {
-      if (feetY < groundY - 0.02) {
+      if (aboveGround < -0.02) {
         this.camera.position.y = groundY + PLAYER_HEIGHT;
         this.velocity.y = 0;
         this.onGround = true;
         return;
       }
 
-      if (feetY <= groundY + GROUND_SNAP) {
+      if (aboveGround >= -0.02 && aboveGround <= GROUND_SNAP) {
         this.camera.position.y = groundY + PLAYER_HEIGHT;
         this.velocity.y = 0;
         this.onGround = true;
@@ -266,6 +267,16 @@ export class FirstPersonController {
     this.onGround = false;
   }
 
+  _tryJump() {
+    if (!this.jumpRequested || !this.onGround || this.velocity.y > 0.05) {
+      return;
+    }
+
+    this.velocity.y = JUMP_VELOCITY;
+    this.onGround = false;
+    this.jumpRequested = false;
+  }
+
   update(dt) {
     this._updateMoveInput();
     this._syncCameraRotation();
@@ -273,10 +284,7 @@ export class FirstPersonController {
     const speed = this.keys.sprint ? SPRINT_SPEED : WALK_SPEED;
     this._applyHorizontalMovement(dt, speed);
 
-    if (this.keys.jump && this.onGround) {
-      this.velocity.y = JUMP_VELOCITY;
-      this.onGround = false;
-    }
+    this._tryJump();
 
     this.velocity.y -= GRAVITY * dt;
     this.camera.position.y += this.velocity.y * dt;
@@ -289,5 +297,6 @@ export class FirstPersonController {
     this.camera.position.set(x, y + PLAYER_HEIGHT, z);
     this.velocity.set(0, 0, 0);
     this.onGround = true;
+    this.jumpRequested = false;
   }
 }
