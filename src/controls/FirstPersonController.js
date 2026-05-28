@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 
-const GRAVITY = 62;
-const FALL_GRAVITY = 95;
-const JUMP_VELOCITY = 10;
+const GRAVITY = 32;
+const JUMP_VELOCITY = 8.8;
 const WALK_SPEED = 5;
 const SPRINT_SPEED = 9;
 const MOUSE_SENSITIVITY = 0.002;
@@ -279,8 +278,7 @@ export class FirstPersonController {
       this.onGround = false;
     }
 
-    const gravity = this.velocity.y <= 0 ? FALL_GRAVITY : GRAVITY;
-    this.velocity.y -= gravity * dt;
+    this.velocity.y -= GRAVITY * dt;
     this.camera.position.y += this.velocity.y * dt;
 
     this._resolveCeiling();
