@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { getBlockType } from '../blocks/blockTypes.js';
+import { generateTrees } from './generateTrees.js';
 
 const BLOCK_SIZE = 1;
 const materialCache = new Map();
@@ -131,15 +132,13 @@ export function createWorld() {
     }
   }
 
-  addBlock(3, 1, 3, 'stone');
-  addBlock(3, 2, 3, 'stone');
-  addBlock(3, 3, 3, 'stone');
-  addBlock(4, 1, 3, 'stone');
-  addBlock(5, 1, 5, 'stone');
-  addBlock(5, 2, 5, 'stone');
-  addBlock(-6, 1, 4, 'stone');
-  addBlock(-6, 2, 4, 'stone');
-  addBlock(-6, 3, 4, 'stone');
+  generateTrees({
+    addBlock,
+    getColumnTop,
+    worldSize,
+    count: 40,
+    spawnClearRadius: 5,
+  });
 
   function collides(pos) {
     const bx = Math.floor(pos.x);
