@@ -271,12 +271,29 @@ export class ChunkManager {
     return chunk.columnTops.get(columnKey(bx, bz)) ?? 0;
   }
 
-  getSupportHeight(x, z, feetY) {
-    const top = this.getColumnTop(x, z);
-    if (top <= feetY + GROUND_EPSILON) {
-      return top;
+  getSupportHeight(x, z, feetY, radius = 0.35) {
+    const offsets = [
+      [0, 0],
+      [radius, 0],
+      [-radius, 0],
+      [0, radius],
+      [0, -radius],
+    ];
+
+    let surfaceY = -Infinity;
+
+    for (const [ox, oz] of offsets) {
+      const top = this.getColumnTop(x + ox, z + oz);
+      if (top > surfaceY) surfaceY = top;
     }
-    return feetY > 0 ? feetY : 0;
+
+    if (surfaceY === -Infinity) return 0;
+
+    if (feetY <= surfaceY + GROUND_EPSILON) {
+      return surfaceY;
+    }
+
+    return feetY;
   }
 
   collides(pos) {

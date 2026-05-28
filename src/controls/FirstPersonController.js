@@ -9,6 +9,7 @@ export const PLAYER_HEIGHT = 1.7;
 export const PLAYER_RADIUS = 0.35;
 const STEP_HEIGHT = 1.05;
 const SKIN = 0.02;
+const GROUND_SNAP = 0.12;
 
 export class FirstPersonController {
   /**
@@ -16,7 +17,7 @@ export class FirstPersonController {
    * @param {HTMLElement} domElement
    * @param {object} options
    * @param {(pos: THREE.Vector3) => boolean} [options.collides]
-   * @param {(x: number, z: number, feetY: number) => number} [options.getSupportHeight]
+   * @param {(x: number, z: number, feetY: number, radius?: number) => number} [options.getSupportHeight]
    */
   constructor(camera, domElement, options = {}) {
     this.camera = camera;
@@ -234,33 +235,29 @@ export class FirstPersonController {
   }
 
   _resolveGround() {
+    const px = this.camera.position.x;
+    const pz = this.camera.position.z;
     const feetY = this.getFeetY();
-    const support = this.getSupportHeight(
-      this.camera.position.x,
-      this.camera.position.z,
-      feetY,
-      PLAYER_RADIUS
-    );
+    const groundY = this.getSupportHeight(px, pz, feetY, PLAYER_RADIUS);
 
-    if (
-      this.velocity.y <= 0 &&
-      feetY <= support + 0.08 &&
-      support <= feetY + 0.25
-    ) {
-      this.camera.position.y = support + PLAYER_HEIGHT;
-      this.velocity.y = 0;
-      this.onGround = true;
-      return;
+    if (this.velocity.y <= 0) {
+      if (feetY < groundY - 0.02) {
+        this.camera.position.y = groundY + PLAYER_HEIGHT;
+        this.velocity.y = 0;
+        this.onGround = true;
+        return;
+      }
+
+      if (feetY <= groundY + GROUND_SNAP) {
+        this.camera.position.y = groundY + PLAYER_HEIGHT;
+        this.velocity.y = 0;
+        this.onGround = true;
+        return;
+      }
     }
 
-    const feet = this._sample.set(
-      this.camera.position.x,
-      feetY,
-      this.camera.position.z
-    );
-    if (this.velocity.y <= 0 && this.collides(feet)) {
-      const cellTop = Math.floor(feetY) + 1;
-      this.camera.position.y = cellTop + PLAYER_HEIGHT;
+    if (this.velocity.y <= 0 && this._bodyCollidesAt(px, pz, feetY)) {
+      this.camera.position.y = groundY + PLAYER_HEIGHT;
       this.velocity.y = 0;
       this.onGround = true;
       return;

@@ -86,14 +86,21 @@ export class MazeWorld {
       [0, radius],
       [0, -radius],
     ];
-    let support = -Infinity;
+
+    let surfaceY = -Infinity;
+
     for (const [ox, oz] of offsets) {
       const top = this.getColumnTop(x + ox, z + oz);
-      if (top <= feetY + GROUND_EPSILON) {
-        support = Math.max(support, top);
-      }
+      if (top > surfaceY) surfaceY = top;
     }
-    return support === -Infinity ? 0 : support;
+
+    if (surfaceY === -Infinity) return 0;
+
+    if (feetY <= surfaceY + GROUND_EPSILON) {
+      return surfaceY;
+    }
+
+    return feetY;
   }
 
   collides(pos) {
