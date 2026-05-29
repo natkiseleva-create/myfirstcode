@@ -74,7 +74,20 @@ public class GameHud {
         float gap = 5;
         float total = Inventory.HOTBAR_SIZE * slot + (Inventory.HOTBAR_SIZE - 1) * gap + 8;
         float x = (width - total) / 2f + 4;
+        renderSelectedItemName(width, y, inventory);
         renderHotbarAt(x, y, inventory);
+    }
+
+    private void renderSelectedItemName(int width, float hotbarY, Inventory inventory) {
+        ItemStack selected = inventory.getSelectedItem();
+        if (selected == null || selected.isEmpty()) return;
+
+        String label = selected.type.label;
+        float textWidth = Math.max(72, label.length() * 11f);
+        float x = (width - textWidth) / 2f;
+        float y = hotbarY - 34;
+        ui.fillRect(x - 12, y - 6, textWidth + 24, 28, 0f, 0f, 0f, 0.45f);
+        ui.drawText("selected-item-" + selected.type.id, label, x, y, 18, Color.WHITE);
     }
 
     private void renderHotbarAt(float x, float y, Inventory inventory) {

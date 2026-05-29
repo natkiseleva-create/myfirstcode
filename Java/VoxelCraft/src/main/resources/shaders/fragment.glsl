@@ -1,5 +1,5 @@
 #version 330 core
-in vec3 vColor;
+in vec4 vColor;
 in vec3 vNormal;
 in vec3 vFragPos;
 
@@ -13,5 +13,5 @@ void main() {
     vec3 normal = normalize(vNormal);
     float diff = max(dot(normal, normalize(uSunDir)), 0.0);
     vec3 lighting = uAmbient + uSunColor * diff;
-    FragColor = vec4(vColor * lighting, 1.0);
+    FragColor = vec4(vColor.rgb * lighting, vColor.a);
 }

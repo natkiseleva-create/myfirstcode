@@ -19,30 +19,52 @@ import static org.lwjgl.system.MemoryUtil.memFree;
  */
 public class VoxelMeshBuilder {
 
-    private static final int FLOATS_PER_VERTEX = 9;
+    private static final int FLOATS_PER_VERTEX = 10;
     private static final int STRIDE_BYTES = FLOATS_PER_VERTEX * Float.BYTES;
 
-    public static ChunkMesh buildMesh(World world, int cx, int cz) {
-        List<Block> blocks = new ArrayList<>();
-        for (Block b : world.getAllBlocks()) {
-            int bcx = Math.floorDiv(b.x(), ChunkGenerator.CHUNK_SIZE);
-            int bcz = Math.floorDiv(b.z(), ChunkGenerator.CHUNK_SIZE);
-            if (bcx == cx && bcz == cz) {
-                blocks.add(b);
-            }
+    /** CCW vertex order when viewed from outside along the face normal. */
+    private enum Face {
+        TOP(0, 1, 0,
+            new int[][]{ {0, 1, 0}, {0, 1, 1}, {1, 1, 1}, {1, 1, 0} }),
+        BOTTOM(0, -1, 0,
+            new int[][]{ {0, 0, 1}, {1, 0, 1}, {1, 0, 0}, {0, 0, 0} }),
+        EAST(1, 0, 0,
+            new int[][]{ {1, 0, 0}, {1, 1, 0}, {1, 1, 1}, {1, 0, 1} }),
+        WEST(-1, 0, 0,
+            new int[][]{ {0, 0, 0}, {0, 0, 1}, {0, 1, 1}, {0, 1, 0} }),
+        SOUTH(0, 0, 1,
+            new int[][]{ {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1} }),
+        NORTH(0, 0, -1,
+            new int[][]{ {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 0} });
+
+        final int nx, ny, nz;
+        final int[][] corners;
+
+        Face(int nx, int ny, int nz, int[][] corners) {
+            this.nx = nx;
+            this.ny = ny;
+            this.nz = nz;
+            this.corners = corners;
         }
+    }
+
+    public static ChunkMesh buildMesh(World world, int cx, int cz) {
+        return uploadMesh(buildMeshData(world, cx, cz));
+    }
+
+    public static MeshData buildMeshData(World world, int cx, int cz) {
+        List<Block> blocks = new ArrayList<>(world.getBlocksInChunk(cx, cz));
 
         List<Float> verts = new ArrayList<>();
         List<Integer> indices = new ArrayList<>();
         int nextVertex = 0;
 
         for (Block block : blocks) {
-            if (!TerrainGenerator.isSolidBlock(block.type.id)) continue;
             nextVertex = addBlockFaces(block, world, verts, indices, nextVertex);
         }
 
         if (verts.isEmpty()) {
-            return new ChunkMesh(0, 0, 0, 0);
+            return new MeshData(new float[0], new int[0]);
         }
 
         float[] vertexArray = new float[verts.size()];
@@ -55,15 +77,23 @@ public class VoxelMeshBuilder {
             indexArray[i] = indices.get(i);
         }
 
+        return new MeshData(vertexArray, indexArray);
+    }
+
+    public static ChunkMesh uploadMesh(MeshData data) {
+        if (data == null || data.isEmpty()) {
+            return new ChunkMesh(0, 0, 0, 0);
+        }
+
         int vao = glGenVertexArrays();
         int vbo = glGenBuffers();
         int ebo = glGenBuffers();
 
-        FloatBuffer vertexBuffer = MemoryUtil.memAllocFloat(vertexArray.length);
-        vertexBuffer.put(vertexArray).flip();
+        FloatBuffer vertexBuffer = MemoryUtil.memAllocFloat(data.vertices.length);
+        vertexBuffer.put(data.vertices).flip();
 
-        IntBuffer indexBuffer = MemoryUtil.memAllocInt(indexArray.length);
-        indexBuffer.put(indexArray).flip();
+        IntBuffer indexBuffer = MemoryUtil.memAllocInt(data.indices.length);
+        indexBuffer.put(data.indices).flip();
 
         glBindVertexArray(vao);
 
@@ -79,7 +109,7 @@ public class VoxelMeshBuilder {
         glVertexAttribPointer(1, 3, GL_FLOAT, false, STRIDE_BYTES, 3 * Float.BYTES);
         glEnableVertexAttribArray(1);
 
-        glVertexAttribPointer(2, 3, GL_FLOAT, false, STRIDE_BYTES, 6 * Float.BYTES);
+        glVertexAttribPointer(2, 4, GL_FLOAT, false, STRIDE_BYTES, 6 * Float.BYTES);
         glEnableVertexAttribArray(2);
 
         glBindVertexArray(0);
@@ -87,7 +117,7 @@ public class VoxelMeshBuilder {
         memFree(vertexBuffer);
         memFree(indexBuffer);
 
-        return new ChunkMesh(vao, vbo, ebo, indexArray.length);
+        return new ChunkMesh(vao, vbo, ebo, data.indices.length);
     }
 
     private static int addBlockFaces(Block block, World world,
@@ -101,52 +131,38 @@ public class VoxelMeshBuilder {
         float tr = ((block.type.topColor >> 16) & 0xFF) / 255f;
         float tg = ((block.type.topColor >> 8) & 0xFF) / 255f;
         float tb = (block.type.topColor & 0xFF) / 255f;
+        float alpha = block.type.transparent ? 0.78f : 1f;
 
-        if (!world.collides(bx, by + 1, bz)) {
-            addFace(verts, indices, baseVertex,
-                bx, by + 1, bz, bx + 1, by + 1, bz,
-                bx + 1, by + 1, bz + 1, bx, by + 1, bz + 1,
-                0, 1, 0, tr, tg, tb);
-            baseVertex += 4;
-        }
+        for (Face face : Face.values()) {
+            Block neighbor = world.getBlock(bx + face.nx, by + face.ny, bz + face.nz);
+            if (neighbor != null && neighbor.type == block.type) {
+                continue;
+            }
+            if (neighbor != null && !block.type.transparent && !neighbor.type.transparent) {
+                continue;
+            }
+            if (neighbor != null && block.type.transparent && TerrainGenerator.isSolidBlock(neighbor.type.id)) {
+                continue;
+            }
 
-        if (!world.collides(bx, by - 1, bz)) {
-            addFace(verts, indices, baseVertex,
-                bx, by, bz, bx + 1, by, bz,
-                bx + 1, by, bz + 1, bx, by, bz + 1,
-                0, -1, 0, r, g, b);
-            baseVertex += 4;
-        }
+            float cr, cg, cb;
+            if (face == Face.TOP) {
+                cr = tr;
+                cg = tg;
+                cb = tb;
+            } else {
+                cr = r;
+                cg = g;
+                cb = b;
+            }
 
-        if (!world.collides(bx + 1, by, bz)) {
+            int[][] corners = face.corners;
             addFace(verts, indices, baseVertex,
-                bx + 1, by, bz, bx + 1, by + 1, bz,
-                bx + 1, by + 1, bz + 1, bx + 1, by, bz + 1,
-                1, 0, 0, r, g, b);
-            baseVertex += 4;
-        }
-
-        if (!world.collides(bx - 1, by, bz)) {
-            addFace(verts, indices, baseVertex,
-                bx, by, bz, bx, by + 1, bz,
-                bx, by + 1, bz + 1, bx, by, bz + 1,
-                -1, 0, 0, r, g, b);
-            baseVertex += 4;
-        }
-
-        if (!world.collides(bx, by, bz + 1)) {
-            addFace(verts, indices, baseVertex,
-                bx, by, bz + 1, bx + 1, by, bz + 1,
-                bx + 1, by + 1, bz + 1, bx, by + 1, bz + 1,
-                0, 0, 1, r, g, b);
-            baseVertex += 4;
-        }
-
-        if (!world.collides(bx, by, bz - 1)) {
-            addFace(verts, indices, baseVertex,
-                bx, by, bz, bx + 1, by, bz,
-                bx + 1, by + 1, bz, bx, by + 1, bz,
-                0, 0, -1, r, g, b);
+                bx + corners[0][0], by + corners[0][1], bz + corners[0][2],
+                bx + corners[1][0], by + corners[1][1], bz + corners[1][2],
+                bx + corners[2][0], by + corners[2][1], bz + corners[2][2],
+                bx + corners[3][0], by + corners[3][1], bz + corners[3][2],
+                face.nx, face.ny, face.nz, cr, cg, cb, alpha);
             baseVertex += 4;
         }
 
@@ -159,11 +175,11 @@ public class VoxelMeshBuilder {
                                 float x3, float y3, float z3,
                                 float x4, float y4, float z4,
                                 float nx, float ny, float nz,
-                                float cr, float cg, float cb) {
-        addVertex(verts, x1, y1, z1, nx, ny, nz, cr, cg, cb);
-        addVertex(verts, x2, y2, z2, nx, ny, nz, cr, cg, cb);
-        addVertex(verts, x3, y3, z3, nx, ny, nz, cr, cg, cb);
-        addVertex(verts, x4, y4, z4, nx, ny, nz, cr, cg, cb);
+                                float cr, float cg, float cb, float alpha) {
+        addVertex(verts, x1, y1, z1, nx, ny, nz, cr, cg, cb, alpha);
+        addVertex(verts, x2, y2, z2, nx, ny, nz, cr, cg, cb, alpha);
+        addVertex(verts, x3, y3, z3, nx, ny, nz, cr, cg, cb, alpha);
+        addVertex(verts, x4, y4, z4, nx, ny, nz, cr, cg, cb, alpha);
 
         indices.add(baseVertex);
         indices.add(baseVertex + 1);
@@ -176,7 +192,7 @@ public class VoxelMeshBuilder {
     private static void addVertex(List<Float> verts,
                                     float x, float y, float z,
                                     float nx, float ny, float nz,
-                                    float r, float g, float b) {
+                                    float r, float g, float b, float alpha) {
         verts.add(x);
         verts.add(y);
         verts.add(z);
@@ -186,6 +202,13 @@ public class VoxelMeshBuilder {
         verts.add(r);
         verts.add(g);
         verts.add(b);
+        verts.add(alpha);
+    }
+
+    public record MeshData(float[] vertices, int[] indices) {
+        public boolean isEmpty() {
+            return vertices.length == 0 || indices.length == 0;
+        }
     }
 
     public record ChunkMesh(int vao, int vbo, int ebo, int indexCount) {

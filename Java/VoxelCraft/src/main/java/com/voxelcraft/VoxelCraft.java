@@ -62,7 +62,7 @@ public class VoxelCraft {
         System.out.println("[VoxelCraft] Step 7/7: installing input callbacks...");
         setupInput();
         glEnable(GL_DEPTH_TEST);
-        glEnable(GL_CULL_FACE);
+        glDisable(GL_CULL_FACE);
         glClearColor(0.10f, 0.10f, 0.18f, 1f);
         System.out.println("[VoxelCraft] Ready: mode menu is visible. If you see blue, press Esc to return to menu.");
 
@@ -94,6 +94,17 @@ public class VoxelCraft {
                         showModeMenu();
                     }
                     return;
+                }
+
+                if (screen == Screen.MODE_MENU && action == GLFW_PRESS) {
+                    if (key == GLFW_KEY_H) {
+                        startLanHost();
+                        return;
+                    }
+                    if (key == GLFW_KEY_J) {
+                        startLanJoin();
+                        return;
+                    }
                 }
 
                 if (session == null || screen != Screen.PLAYING) return;
@@ -193,6 +204,35 @@ public class VoxelCraft {
         System.out.println("[VoxelCraft] Mode ready: " + mode.id + ". Click the overlay to start.");
     }
 
+    private void startLanHost() {
+        System.out.println("[VoxelCraft] Starting LAN host...");
+        renderLoading("LAN", "Запуск сервера...", 0.25f);
+        disposeSession();
+        session = GameSession.hostLan();
+        craftingGrid.clearIntoInventory(session.inventory);
+        renderLoading("LAN", "Построение мира host...", 0.75f);
+        session.updateMeshesIfNeeded();
+        screen = Screen.OVERLAY;
+        window.setCursorDisabled(false);
+        glClearColor(0.53f, 0.81f, 0.92f, 1f);
+        renderLoading("LAN", "Сервер готов на порту 25565", 1.0f);
+    }
+
+    private void startLanJoin() {
+        String host = System.getProperty("voxelcraft.joinHost", "127.0.0.1");
+        System.out.println("[VoxelCraft] Joining LAN host: " + host);
+        renderLoading("LAN", "Подключение к " + host + "...", 0.35f);
+        disposeSession();
+        session = GameSession.joinLan(host);
+        craftingGrid.clearIntoInventory(session.inventory);
+        renderLoading("LAN", "Загрузка мира сервера...", 0.75f);
+        session.updateMeshesIfNeeded();
+        screen = Screen.OVERLAY;
+        window.setCursorDisabled(false);
+        glClearColor(0.53f, 0.81f, 0.92f, 1f);
+        renderLoading("LAN", "Подключено", 1.0f);
+    }
+
     private void beginGameplay() {
         if (session == null) return;
         screen = Screen.PLAYING;
@@ -288,6 +328,12 @@ public class VoxelCraft {
     }
 
     private void renderWorld() {
+        // Render voxel faces double-sided so visible terrain never disappears because
+        // of face winding differences between generated block sides.
+        glDisable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
         worldShader.use();
         Matrix4f projection = Camera.projection(window.getWidth(), window.getHeight());
         Matrix4f view = Camera.view(session.controller);
@@ -333,7 +379,9 @@ public class VoxelCraft {
         BlockType removed = session.world.removeBlock(hit.x(), hit.y(), hit.z());
         if (removed != null) {
             session.inventory.addItem(removed, 1);
-            session.markMeshesDirty();
+            session.markBlockChanged(hit.x(), hit.y(), hit.z());
+            session.sendBlockChange(hit.x() + "," + hit.y() + "," + hit.z(), "null");
+            session.save();
             currentHit = null;
         }
     }
@@ -347,8 +395,11 @@ public class VoxelCraft {
         int z = hit.placeZ();
         if (blocksPlayerPlacement(x, y, z)) return;
         if (session.world.placeBlock(x, y, z, session.inventory.getSelectedItem().type)) {
+            BlockType placed = session.inventory.getSelectedItem().type;
             session.inventory.consumeSelected(1);
-            session.markMeshesDirty();
+            session.markBlockChanged(x, y, z);
+            session.sendBlockChange(x + "," + y + "," + z, placed.id);
+            session.save();
             currentHit = null;
         }
     }
@@ -438,6 +489,7 @@ public class VoxelCraft {
     }
 
     public static void main(String[] args) {
+        System.setProperty("java.awt.headless", "true");
         new VoxelCraft().run();
     }
 }

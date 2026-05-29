@@ -32,6 +32,8 @@ public class ModeMenuScreen {
         btnY += btnH + 16;
         drawButton(panelX, btnY, panelW, btnH, "Лабиринт",
             "Найдите золотой выход из каменного лабиринта", 0.78f, 0.55f, 0.18f);
+        ui.drawText("lan-help", "LAN: H — создать сервер, J — подключиться к -Dvoxelcraft.joinHost=IP",
+            panelX, btnY + btnH + 28, 15, new Color(210, 210, 220));
         ui.end();
     }
 

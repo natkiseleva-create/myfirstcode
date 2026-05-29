@@ -12,6 +12,10 @@ public class ChunkGenerator {
     private static final double TREE_SPAWN_THRESHOLD = 0.82;
 
     public static ChunkBlocks generateChunk(int cx, int cz) {
+        return generateChunk(cx, cz, 12345);
+    }
+
+    public static ChunkBlocks generateChunk(int cx, int cz, int seed) {
         List<Block> blocks = new ArrayList<>();
         int baseX = cx * CHUNK_SIZE;
         int baseZ = cz * CHUNK_SIZE;
@@ -21,8 +25,8 @@ public class ChunkGenerator {
             for (int lz = 0; lz < CHUNK_SIZE; lz++) {
                 int wx = baseX + lx;
                 int wz = baseZ + lz;
-                int surfaceY = (int) TerrainGenerator.getTerrainHeight(wx, wz);
-                fillTerrainColumn(wx, wz, surfaceY, blocks);
+                TerrainGenerator.TerrainColumn column = TerrainGenerator.sampleColumn(wx, wz, seed);
+                fillTerrainColumn(wx, wz, column, blocks, seed);
             }
         }
 
@@ -33,12 +37,12 @@ public class ChunkGenerator {
                 int wz = baseZ + lz;
 
                 if (wx * wx + wz * wz < 36) continue;
-                if (!TerrainGenerator.canPlaceTree(wx, wz)) continue;
-                if (!TreeGenerator.isTreeSpawnColumn(wx, wz)) continue;
-                if (FastNoise.randomAt(wx * 3 + 17, wz * 7 + 31) > TREE_SPAWN_THRESHOLD) continue;
+                if (!TerrainGenerator.canPlaceTree(wx, wz, seed)) continue;
+                if (!TreeGenerator.isTreeSpawnColumn(wx, wz, seed)) continue;
+                if (FastNoise.randomAt(wx * 3 + 17, wz * 7 + 31, seed + 101) > TREE_SPAWN_THRESHOLD) continue;
                 if (hasTreeNearby(blocks, wx, wz)) continue;
 
-                int surfaceY = (int) TerrainGenerator.getTerrainHeight(wx, wz);
+                int surfaceY = (int) TerrainGenerator.getTerrainHeight(wx, wz, seed);
                 if (surfaceY < 5) continue;
 
                 TreeGenerator.placeTree(wx, wz, (x, y, z, type) -> {
@@ -93,18 +97,19 @@ public class ChunkGenerator {
         return result;
     }
 
-    private static void fillTerrainColumn(int wx, int wz, int surfaceY, List<Block> blocks) {
+    private static void fillTerrainColumn(int wx, int wz, TerrainGenerator.TerrainColumn column, List<Block> blocks, int seed) {
+        int surfaceY = column.height();
         for (int y = -TerrainGenerator.STONE_DEPTH; y < surfaceY; y++) {
             String type = (y < surfaceY - 3 || y < 0) ? "stone" : "dirt";
             blocks.add(new Block(wx, y, wz, com.voxelcraft.block.BlockType.fromId(type)));
         }
 
-        String surfaceBlock = TerrainGenerator.isWaterColumn(wx, wz) ? "sand"
-                : TerrainGenerator.getSurfaceBlock(wx, wz, surfaceY);
+        String surfaceBlock = TerrainGenerator.isWaterColumn(wx, wz, seed) ? "sand"
+                : TerrainGenerator.getSurfaceBlock(wx, wz, surfaceY, seed);
         blocks.add(new Block(wx, surfaceY, wz, com.voxelcraft.block.BlockType.fromId(surfaceBlock)));
 
-        if (surfaceY < TerrainGenerator.SEA_LEVEL) {
-            for (int y = surfaceY + 1; y <= TerrainGenerator.SEA_LEVEL; y++) {
+        if (column.hasWater()) {
+            for (int y = surfaceY + 1; y <= column.waterLevel(); y++) {
                 blocks.add(new Block(wx, y, wz, com.voxelcraft.block.BlockType.WATER));
             }
         }

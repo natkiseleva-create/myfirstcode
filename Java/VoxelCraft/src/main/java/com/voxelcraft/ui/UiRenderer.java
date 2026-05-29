@@ -15,7 +15,8 @@ import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryUtil.memFree;
 
 public class UiRenderer {
-    private static final boolean AWT_TEXT_ENABLED = Boolean.getBoolean("voxelcraft.awtText");
+    private static final boolean AWT_TEXT_ENABLED =
+        !"false".equalsIgnoreCase(System.getProperty("voxelcraft.awtText"));
     private static final String VERTEX_SHADER = """
         #version 330 core
         layout (location = 0) in vec2 aPos;
@@ -155,7 +156,7 @@ public class UiRenderer {
         BufferedImage image = new BufferedImage(dims[0], dims[1], BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, size));
+        g.setFont(resolveFont(size));
         g.setColor(color);
         g.drawString(text, 0, size);
         g.dispose();
@@ -184,10 +185,20 @@ public class UiRenderer {
     private int[] textDimensions(String text, int size) {
         BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = scratch.createGraphics();
-        g.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, size));
+        g.setFont(resolveFont(size));
         FontMetrics metrics = g.getFontMetrics();
         g.dispose();
         return new int[]{Math.max(1, metrics.stringWidth(text)), Math.max(1, metrics.getHeight())};
+    }
+
+    private static Font resolveFont(int size) {
+        for (String family : new String[]{"Helvetica Neue", "Arial", "DejaVu Sans", Font.SANS_SERIF}) {
+            Font font = new Font(family, Font.PLAIN, size);
+            if (font.canDisplayUpTo("Выберите режим игры") == -1) {
+                return font;
+            }
+        }
+        return new Font(Font.SANS_SERIF, Font.PLAIN, size);
     }
 
     private static int linkProgram(String vertexSource, String fragmentSource) {

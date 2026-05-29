@@ -37,6 +37,23 @@ public class Inventory {
         return slots[index];
     }
 
+    public ItemStack[] snapshot() {
+        ItemStack[] copy = new ItemStack[TOTAL_SLOTS];
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            copy[i] = slots[i].copy();
+        }
+        return copy;
+    }
+
+    public void restore(ItemStack[] savedSlots, int savedSelectedSlot) {
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            ItemStack stack = savedSlots != null && i < savedSlots.length ? savedSlots[i] : null;
+            slots[i] = stack == null ? new ItemStack(null, 0) : stack.copy();
+        }
+        selectedSlot = Math.max(0, Math.min(HOTBAR_SIZE - 1, savedSelectedSlot));
+        notifyChange();
+    }
+
     public void setSlot(int index, ItemStack stack) {
         if (index < 0 || index >= TOTAL_SLOTS) return;
         slots[index] = stack == null ? new ItemStack(null, 0) : stack;

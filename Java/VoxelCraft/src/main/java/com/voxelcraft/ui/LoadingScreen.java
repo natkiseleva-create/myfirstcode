@@ -17,10 +17,8 @@ public class LoadingScreen {
         float barW = panelW;
         float barH = 18;
 
-        // Text rendering is optional because AWT can conflict with LWJGL on macOS.
-        // The progress bar is always drawn with pure OpenGL rectangles.
-        ui.fillRect(panelX, panelY - 58, panelW * 0.46f, 24, 0.30f, 0.62f, 0.95f, 1f);
-        ui.fillRect(panelX, panelY - 26, panelW * 0.72f, 12, 0.55f, 0.62f, 0.72f, 1f);
+        ui.drawText("loading-title", title, panelX, panelY - 58, 28, java.awt.Color.WHITE);
+        ui.drawText("loading-detail", detail, panelX, panelY - 26, 16, new java.awt.Color(190, 195, 205));
         ui.fillRect(panelX, panelY + 16, barW, barH, 0.18f, 0.20f, 0.26f, 1f);
         ui.fillRect(panelX + 2, panelY + 18, Math.max(0, (barW - 4) * clamp(progress)), barH - 4, 0.30f, 0.62f, 0.95f, 1f);
         ui.end();

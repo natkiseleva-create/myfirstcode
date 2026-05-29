@@ -1,5 +1,6 @@
 target/
 .m2/
+saves/
 target/classpath.txt
 *.class
 *.jar

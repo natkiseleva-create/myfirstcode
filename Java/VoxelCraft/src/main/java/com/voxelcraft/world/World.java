@@ -4,6 +4,7 @@ import com.voxelcraft.block.Block;
 import com.voxelcraft.block.BlockPos;
 import com.voxelcraft.block.BlockType;
 import com.voxelcraft.mode.GameMode;
+import com.voxelcraft.save.WorldSave;
 
 import java.util.*;
 
@@ -14,6 +15,7 @@ public class World {
     private static final double SNAP = 0.12;
 
     private final GameMode gameMode;
+    private final int seed;
     private final Map<String, Chunk> chunks = new HashMap<>();
     private final Map<String, String> modifications = new HashMap<>();
     private final Set<String> newlyLoadedChunks = new LinkedHashSet<>();
@@ -24,7 +26,19 @@ public class World {
     private MazeGenerator.MazeData mazeData;
 
     public World(GameMode mode) {
+        this(mode, new Random().nextInt(), null);
+    }
+
+    public World(WorldSave save) {
+        this(save.mode, save.seed, save);
+    }
+
+    private World(GameMode mode, int seed, WorldSave save) {
         this.gameMode = mode;
+        this.seed = seed;
+        if (save != null) {
+            modifications.putAll(save.modifications);
+        }
         if (mode == GameMode.MAZE) {
             mazeData = MazeGenerator.generateMaze(15);
             spawnX = mazeData.spawn()[0] + 0.5;
@@ -32,7 +46,7 @@ public class World {
             spawnGroundY = 1.0;
             loadMazeBlocks();
         } else {
-            TerrainGenerator.SpawnPoint spawn = TerrainGenerator.findLandSpawn(0, 0, 96);
+            TerrainGenerator.SpawnPoint spawn = TerrainGenerator.findLandSpawn(0, 0, 96, seed);
             spawnX = spawn.x();
             spawnZ = spawn.z();
             spawnGroundY = spawn.groundY();
@@ -63,6 +77,10 @@ public class World {
         return gameMode;
     }
 
+    public int getSeed() {
+        return seed;
+    }
+
     public double getSpawnX() {
         return spawnX;
     }
@@ -82,13 +100,13 @@ public class World {
         return bx == mazeData.exit()[0] && bz == mazeData.exit()[1];
     }
 
-    public void loadChunk(int cx, int cz) {
+    public synchronized void loadChunk(int cx, int cz) {
         if (gameMode == GameMode.MAZE) return;
 
         String key = cx + "," + cz;
         if (chunks.containsKey(key)) return;
 
-        ChunkGenerator.ChunkBlocks gen = ChunkGenerator.generateChunk(cx, cz);
+        ChunkGenerator.ChunkBlocks gen = ChunkGenerator.generateChunk(cx, cz, seed);
         Map<String, Block> blockMap = new HashMap<>();
 
         for (Block b : gen.blocks()) {
@@ -129,12 +147,12 @@ public class World {
         newlyLoadedChunks.add(key);
     }
 
-    public void unloadChunk(int cx, int cz) {
+    public synchronized void unloadChunk(int cx, int cz) {
         if (gameMode == GameMode.MAZE) return;
         chunks.remove(cx + "," + cz);
     }
 
-    public void update(int playerX, int playerZ) {
+    public synchronized void update(int playerX, int playerZ) {
         if (gameMode == GameMode.MAZE) return;
 
         int pcx = Math.floorDiv(playerX, ChunkGenerator.CHUNK_SIZE);
@@ -156,7 +174,7 @@ public class World {
         }
     }
 
-    public void ensureLoaded(int playerX, int playerZ) {
+    public synchronized void ensureLoaded(int playerX, int playerZ) {
         int pcx = Math.floorDiv(playerX, ChunkGenerator.CHUNK_SIZE);
         int pcz = Math.floorDiv(playerZ, ChunkGenerator.CHUNK_SIZE);
 
@@ -167,7 +185,7 @@ public class World {
         }
     }
 
-    public double getSupportHeight(double x, double z, double feetY) {
+    public synchronized double getSupportHeight(double x, double z, double feetY) {
         int bx = (int) Math.floor(x);
         int bz = (int) Math.floor(z);
         double maxSurfaceY = feetY + SNAP + 0.05;
@@ -199,7 +217,7 @@ public class World {
         return best == Double.NEGATIVE_INFINITY ? null : best;
     }
 
-    public boolean collides(double x, double y, double z) {
+    public synchronized boolean collides(double x, double y, double z) {
         int bx = (int) Math.floor(x);
         int by = (int) Math.floor(y);
         int bz = (int) Math.floor(z);
@@ -210,13 +228,13 @@ public class World {
         return b != null && TerrainGenerator.isSolidBlock(b.type.id);
     }
 
-    public Block getBlock(int x, int y, int z) {
+    public synchronized Block getBlock(int x, int y, int z) {
         Chunk chunk = chunks.get(chunkCoords(x, z));
         if (chunk == null) return null;
         return chunk.blocks.get(new BlockPos(x, y, z).key());
     }
 
-    public boolean isWaterAt(double x, double z) {
+    public synchronized boolean isWaterAt(double x, double z) {
         int bx = (int) Math.floor(x);
         int bz = (int) Math.floor(z);
         Chunk chunk = chunks.get(chunkCoords(bx, bz));
@@ -227,19 +245,19 @@ public class World {
         return false;
     }
 
-    public Set<String> drainLoadedChunks() {
+    public synchronized Set<String> drainLoadedChunks() {
         Set<String> drained = new LinkedHashSet<>(newlyLoadedChunks);
         newlyLoadedChunks.clear();
         return drained;
     }
 
-    public Set<String> drainUnloadedChunks() {
+    public synchronized Set<String> drainUnloadedChunks() {
         Set<String> drained = new LinkedHashSet<>(newlyUnloadedChunks);
         newlyUnloadedChunks.clear();
         return drained;
     }
 
-    public BlockType removeBlock(int x, int y, int z) {
+    public synchronized BlockType removeBlock(int x, int y, int z) {
         String key = new BlockPos(x, y, z).key();
         String ck = chunkCoords(x, z);
         Chunk chunk = chunks.get(ck);
@@ -251,7 +269,7 @@ public class World {
         return b.type;
     }
 
-    public boolean placeBlock(int x, int y, int z, BlockType type) {
+    public synchronized boolean placeBlock(int x, int y, int z, BlockType type) {
         String key = new BlockPos(x, y, z).key();
         String ck = chunkCoords(x, z);
         Chunk chunk = chunks.get(ck);
@@ -263,12 +281,50 @@ public class World {
         return true;
     }
 
-    public Collection<Block> getAllBlocks() {
+    public synchronized void applyBlockChange(String blockKey, String typeId) {
+        String[] parts = blockKey.split(",");
+        if (parts.length != 3) return;
+        int x = Integer.parseInt(parts[0]);
+        int y = Integer.parseInt(parts[1]);
+        int z = Integer.parseInt(parts[2]);
+        String ck = chunkCoords(x, z);
+        Chunk chunk = chunks.get(ck);
+        if ("null".equals(typeId)) {
+            modifications.put(blockKey, "null");
+            if (chunk != null) {
+                chunk.blocks.remove(blockKey);
+                rebuildColumnTops(chunk);
+            }
+            return;
+        }
+
+        BlockType type = BlockType.fromId(typeId);
+        if (type == null) return;
+        modifications.put(blockKey, type.id);
+        if (chunk != null) {
+            chunk.blocks.put(blockKey, new Block(x, y, z, type));
+            rebuildColumnTops(chunk);
+        }
+    }
+
+    public synchronized Collection<Block> getAllBlocks() {
         List<Block> all = new ArrayList<>();
         for (Chunk c : chunks.values()) {
             all.addAll(c.blocks.values());
         }
         return all;
+    }
+
+    public synchronized Collection<Block> getBlocksInChunk(int cx, int cz) {
+        Chunk chunk = chunks.get(cx + "," + cz);
+        if (chunk == null) {
+            return List.of();
+        }
+        return chunk.blocks.values();
+    }
+
+    public synchronized Map<String, String> getModificationsSnapshot() {
+        return new LinkedHashMap<>(modifications);
     }
 
     private String chunkCoords(int x, int z) {

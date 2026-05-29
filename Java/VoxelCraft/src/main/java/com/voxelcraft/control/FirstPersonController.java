@@ -13,6 +13,7 @@ public class FirstPersonController {
     private static final double MOUSE_SENSITIVITY = 0.002;
     private static final double STEP_HEIGHT = 1.05;
     private static final double GROUND_SNAP = 0.12;
+    private static final double SKIN = 0.02;
 
     private final World world;
 
@@ -34,79 +35,132 @@ public class FirstPersonController {
     public void update(double dt) {
         if (!isLocked) return;
 
-        // Mouse look
-        // (handled externally via addYaw/addPitch)
+        applyHorizontalMovement(dt);
 
-        // Movement
+        if (jumping && onGround && velocityY <= 0.05) {
+            velocityY = JUMP_VELOCITY;
+            onGround = false;
+        }
+
+        velocityY -= GRAVITY * dt;
+        y += velocityY * dt;
+
+        resolveCeiling();
+        resolveGround();
+
+        world.update((int) x, (int) z);
+    }
+
+    private void applyHorizontalMovement(double dt) {
         double speed = sprinting ? SPRINT_SPEED : WALK_SPEED;
 
         double sin = Math.sin(yaw);
         double cos = Math.cos(yaw);
 
-        double moveX = 0, moveZ = 0;
+        double moveX = 0;
+        double moveZ = 0;
         if (forward) { moveX -= sin; moveZ -= cos; }
         if (backward) { moveX += sin; moveZ += cos; }
         if (left) { moveX -= cos; moveZ += sin; }
         if (right) { moveX += cos; moveZ -= sin; }
 
         double len = Math.sqrt(moveX * moveX + moveZ * moveZ);
-        if (len > 0) {
-            moveX /= len;
-            moveZ /= len;
+        if (len <= 0) return;
+
+        moveX = moveX / len * speed * dt;
+        moveZ = moveZ / len * speed * dt;
+
+        double feetY = getFeetY();
+        double nextX = x + moveX;
+        double nextZ = z + moveZ;
+
+        if (!bodyCollidesAt(nextX, nextZ, feetY)) {
+            x = nextX;
+            z = nextZ;
+            return;
         }
 
-        velocityX = moveX * speed;
-        velocityZ = moveZ * speed;
-
-        // Gravity
-        if (!onGround) {
-            velocityY -= GRAVITY * dt;
+        if (!bodyCollidesAt(nextX, z, feetY)) {
+            x = nextX;
+        } else if (!bodyCollidesAt(x, nextZ, feetY)) {
+            z = nextZ;
         }
 
-        if (jumping && onGround) {
-            velocityY = JUMP_VELOCITY;
-            onGround = false;
+        if (bodyCollidesAt(x, z, feetY)) {
+            tryStepUp(nextX, nextZ, feetY);
         }
+    }
 
-        // Move X
-        double newX = x + velocityX * dt;
-        if (!world.collides(newX, y, z) && !world.collides(newX, y + 0.1, z)) {
-            x = newX;
+    private void tryStepUp(double targetX, double targetZ, double feetY) {
+        double steppedFeetY = feetY + STEP_HEIGHT;
+        if (bodyCollidesAt(targetX, targetZ, steppedFeetY)) return;
+
+        double support = world.getSupportHeight(targetX, targetZ, steppedFeetY);
+        if (Math.abs(support - steppedFeetY) > 0.2) return;
+
+        x = targetX;
+        z = targetZ;
+        y = support + PLAYER_HEIGHT;
+        velocityY = Math.max(0, velocityY);
+        onGround = true;
+    }
+
+    private void resolveCeiling() {
+        double headY = y - SKIN;
+        if (world.collides(x, headY, z) && velocityY > 0) {
+            y = Math.floor(headY) + 1 - SKIN;
+            velocityY = 0;
         }
+    }
 
-        // Move Z
-        double newZ = z + velocityZ * dt;
-        if (!world.collides(x, y, newZ) && !world.collides(x, y + 0.1, newZ)) {
-            z = newZ;
-        }
+    private void resolveGround() {
+        double feetY = getFeetY();
+        double groundY = world.getSupportHeight(x, z, feetY);
+        double aboveGround = feetY - groundY;
 
-        // Move Y
-        double newY = y + velocityY * dt;
-        if (!world.collides(x, newY, z) && !world.collides(x, newY + 0.1, z)) {
-            y = newY;
-        } else {
-            if (velocityY < 0) {
-                // Hit ground
-                double groundY = Math.floor(y) + 1;
-                y = groundY;
+        if (velocityY <= 0) {
+            if (aboveGround < -0.02) {
+                y = groundY + PLAYER_HEIGHT;
                 velocityY = 0;
                 onGround = true;
-            } else {
+                return;
+            }
+
+            if (aboveGround >= -0.02 && aboveGround <= GROUND_SNAP) {
+                y = groundY + PLAYER_HEIGHT;
                 velocityY = 0;
+                onGround = true;
+                return;
             }
         }
 
-        // Check if standing on ground (feet level)
-        double feetY = y - PLAYER_HEIGHT;
-        double support = world.getSupportHeight(x, z, feetY);
-        if (support > feetY - GROUND_SNAP) {
-            y = support + PLAYER_HEIGHT;
+        if (velocityY <= 0 && bodyCollidesAt(x, z, feetY)) {
+            double centerGround = world.getSupportHeight(x, z, feetY);
+            y = centerGround + PLAYER_HEIGHT;
             velocityY = 0;
             onGround = true;
+            return;
         }
 
-        // World updates
-        world.update((int) x, (int) z);
+        onGround = false;
+    }
+
+    private boolean bodyCollidesAt(double px, double pz, double feetY) {
+        double midY = feetY + PLAYER_HEIGHT * 0.5;
+        return collides(px, feetY + SKIN, pz)
+            || collides(px, feetY + PLAYER_HEIGHT - SKIN, pz)
+            || collides(px + PLAYER_RADIUS, midY, pz)
+            || collides(px - PLAYER_RADIUS, midY, pz)
+            || collides(px, midY, pz + PLAYER_RADIUS)
+            || collides(px, midY, pz - PLAYER_RADIUS);
+    }
+
+    private boolean collides(double px, double py, double pz) {
+        return world.collides(px, py, pz);
+    }
+
+    private double getFeetY() {
+        return y - PLAYER_HEIGHT;
     }
 
     public void addYaw(double delta) {
