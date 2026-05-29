@@ -58,10 +58,10 @@ public class Window {
         glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwSetInputMode(handle, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 
-        glfwSetFramebufferSizeCallback(handle, (w, h) -> {
-            this.width = w;
-            this.height = h;
-            glViewport(0, 0, w, h);
+        glfwSetFramebufferSizeCallback(handle, (window, w, h) -> {
+            this.width = (int) w;
+            this.height = (int) h;
+            glViewport(0, 0, (int) w, (int) h);
         });
     }
 
