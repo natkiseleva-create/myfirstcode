@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run VoxelCraft",
+      "request": "launch",
+      "mainClass": "com.voxelcraft.VoxelCraft",
+      "projectName": "VoxelCraft",
+      "vmArgs": "-XstartOnFirstThread"
+    }
+  ]
+}

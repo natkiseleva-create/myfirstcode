@@ -1,0 +1,535 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #eee;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.85;
+}
+
+#crosshair::before,
+#crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+#crosshair::before {
+  left: 7px;
+  top: 0;
+  width: 2px;
+  height: 16px;
+}
+
+#crosshair::after {
+  left: 0;
+  top: 7px;
+  width: 16px;
+  height: 2px;
+}
+
+.hotbar.hidden {
+  display: none;
+}
+
+.hotbar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  z-index: 6;
+  pointer-events: auto;
+}
+
+.inventory-panel {
+  position: relative;
+  padding: 16px;
+  background: rgba(20, 20, 30, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  z-index: 12;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.inventory-panel.hidden {
+  display: none;
+}
+
+.inventory-panel h2 {
+  text-align: center;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 48px);
+  grid-template-rows: repeat(3, 48px);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.hotbar-panel {
+  position: static;
+  transform: none;
+  margin: 0 auto;
+}
+
+.inv-slot {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(80, 80, 90, 0.6);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.inv-slot:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.inv-slot.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+.block-preview {
+  display: block;
+  width: 32px;
+  height: 32px;
+  margin: 6px auto 0;
+  background: linear-gradient(
+    135deg,
+    var(--top, #5a9e3a) 0%,
+    var(--top, #5a9e3a) 45%,
+    var(--side, #6b4423) 45%,
+    var(--side, #6b4423) 100%
+  );
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.slot-count {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.slot-key {
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  font-size: 10px;
+  opacity: 0.65;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 10;
+  text-align: center;
+  user-select: none;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+#overlay h1 {
+  font-size: 2.5rem;
+  letter-spacing: 0.05em;
+}
+
+#overlay p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+#overlay ul {
+  list-style: none;
+  margin-top: 0.5rem;
+  line-height: 1.8;
+  opacity: 0.85;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.15em 0.45em;
+  margin: 0 0.1em;
+  border: 1px solid #666;
+  border-radius: 4px;
+  background: #333;
+  font-size: 0.85em;
+}
+
+#mode-menu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: rgba(10, 12, 24, 0.92);
+  z-index: 20;
+  text-align: center;
+  padding: 1rem;
+}
+
+#mode-menu.hidden {
+  display: none;
+}
+
+#mode-menu h1 {
+  font-size: 2.5rem;
+}
+
+.mode-subtitle {
+  opacity: 0.85;
+  margin-top: -0.5rem;
+}
+
+.mode-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: min(420px, 90vw);
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  background: rgba(60, 70, 100, 0.5);
+  color: #eee;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mode-btn:hover {
+  border-color: #8bc34a;
+  background: rgba(80, 100, 60, 0.45);
+}
+
+.mode-btn-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.mode-btn-desc {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+#overlay h2 {
+  font-size: 1.4rem;
+  max-width: 32rem;
+  line-height: 1.4;
+}
+
+#win-message {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 15;
+  text-align: center;
+}
+
+#win-message.hidden {
+  display: none;
+}
+
+#win-message h2 {
+  font-size: 2rem;
+  color: #ffd54f;
+}
+
+.win-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.win-actions button,
+.btn-secondary {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background: #5cb848;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.win-actions button:hover,
+.btn-secondary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-secondary {
+  display: block;
+  margin: 12px auto 0;
+  background: #555;
+}
+
+.craft-panel {
+  margin-bottom: 12px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+}
+
+.craft-panel h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.craft-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(90, 70, 40, 0.7);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.craft-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(110, 85, 50, 0.85);
+}
+
+.craft-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.inventory-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  cursor: default;
+}
+
+.inventory-backdrop.hidden {
+  display: none;
+}
+
+.inventory-panel {
+  position: relative;
+  transform: none;
+  left: auto;
+  top: auto;
+}
+
+.btn-close-inv {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-close-inv:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.inv-hint {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+.btn-secondary-muted {
+  margin-top: 6px;
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+
+#inventory-panel .btn-secondary {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.inventory-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.craft-sidebar {
+  flex-shrink: 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.craft-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.craft-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.craft-tab {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(60, 60, 70, 0.8);
+  color: #eee;
+  cursor: pointer;
+}
+
+.craft-tab.active {
+  border-color: #8bc34a;
+  background: rgba(80, 100, 60, 0.7);
+}
+
+.craft-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.craft-grid {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, 48px);
+  grid-template-rows: repeat(2, 48px);
+}
+
+.craft-grid[data-size="3"] {
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(3, 48px);
+}
+
+.craft-arrow {
+  font-size: 1.5rem;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.craft-output-slot {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.craft-output-slot.has-result {
+  border-color: #8bc34a;
+  box-shadow: 0 0 8px rgba(139, 195, 74, 0.4);
+}
+
+.craft-output-slot:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.craft-help,
+.craft-recipes-hint {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  opacity: 0.75;
+  margin-top: 10px;
+}
+
+.craft-recipes-hint {
+  opacity: 0.55;
+}
+
+.inventory-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.inventory-panel {
+  max-width: min(96vw, 720px);
+  max-height: 90vh;
+  overflow-y: auto;
+}

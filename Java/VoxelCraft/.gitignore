@@ -1,0 +1,9 @@
+target/
+.m2/
+target/classpath.txt
+*.class
+*.jar
+!pom.xml
+.idea/
+*.iml
+.DS_Store
